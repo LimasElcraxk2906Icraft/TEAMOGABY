@@ -1,0 +1,17 @@
+body {
+  font-family: sans-serif;
+  text-align: center;
+  background: #e6ffe6;
+  margin: 0;
+  padding: 0;
+}
+
+#auth, #game {
+  padding: 20px;
+}
+
+input {
+  margin: 5px;
+  padding: 10px;
+  font-size: 16px;
+}

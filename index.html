@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juego Compost Casero</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; }
+    #game > div { margin-bottom: 1rem; }
+    button { margin: 0.2rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Juego de Compost Casero</h1>
+
+  <div id="auth-section">
+    <h2>Iniciar Sesión / Registro</h2>
+    <input id="email" type="email" placeholder="Correo electrónico" />
+    <input id="password" type="password" placeholder="Contraseña" />
+    <button id="btn-login">Iniciar Sesión</button>
+    <button id="btn-register">Registrar</button>
+    <p id="auth-message"></p>
+  </div>
+
+  <div id="game" style="display:none;">
+    <p>Día del compost: <span id="day-count">1</span></p>
+
+    <div id="collect-section">
+      <h3>Recolección de Ingredientes</h3>
+      <div id="ingredient-list"></div>
+      <button onclick="generateIngredients()">Buscar nuevos ingredientes</button>
+      <h4>Inventario:</h4>
+      <ul id="inventory-list"></ul>
+    </div>
+
+    <h3>Compost</h3>
+    <ul id="compost-list"></ul>
+    <p>Estado del compost: <span id="compost-status">Vacío</span></p>
+
+    <h4>Parámetros del compost</h4>
+    <ul>
+      <li>🌡️ Temperatura: <span id="temp">-- °C</span></li>
+      <li>💧 Humedad: <span id="humidity">-- %</span></li>
+      <li>🧪 Descomposición: <span id="decomp">-- %</span></li>
+    </ul>
+
+    <button id="btn-logout">Cerrar Sesión</button>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
