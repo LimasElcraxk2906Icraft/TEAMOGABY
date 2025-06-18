@@ -1,0 +1,2951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Compost 2D Estilo Terraria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos generales del cuerpo */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e0f2f7; /* Fondo azul claro */
+            display: flex;
+            flex-direction: column; /* Apilar verticalmente */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none; /* Prevenir selección de texto durante arrastrar y soltar */
+        }
+        /* Contenedor principal del juego */
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 1rem; /* Bordes redondeados */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            max-width: 100vw; /* Ancho responsivo */
+            overflow: auto; /* Permitir desplazamiento dentro del contenedor si el contenido excede */
+            box-sizing: border-box;
+            position: relative; /* Para el posicionamiento absoluto de la caja de diálogo */
+            z-index: 10; /* Establecer explícitamente el z-index para capas */
+        }
+        /* Estilos del canvas del juego */
+        canvas {
+            background-color: #f5f5dc; /* Beige para el suelo */
+            border: 2px solid #8b4513; /* Borde marrón para la casa */
+            border-radius: 0.5rem;
+            display: block;
+            touch-action: none; /* Prevenir acciones táctiles predeterminadas como desplazarse/hacer zoom */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        /* Información del juego (UI superior) */
+        .game-info {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0.5rem 0;
+            font-size: 1.1rem;
+            color: #333;
+            flex-wrap: wrap; /* Permitir ajuste de línea en pantallas pequeñas */
+            gap: 0.5rem;
+        }
+        .game-info div {
+            padding: 0.3rem 0.8rem;
+            background-color: #f0f4c3; /* Fondo amarillo claro para la información */
+            border-radius: 0.5rem;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        /* Controles (botones de movimiento) */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .control-button {
+            background-color: #4CAF50; /* Verde */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .control-button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .control-button:active {
+            background-color: #388e3c;
+            transform: translateY(0);
+        }
+        /* Caja de mensajes temporales */
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        /* Estilos para la superposición de preguntas */
+        .question-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            flex-direction: column;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .question-box {
+            background-color: #fff;
+            color: #333;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            max-width: 80%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        .question-text {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            font-weight: bold;
+        }
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            width: 100%;
+        }
+        .option-button {
+            background-color: #a8e6cf; /* Verde claro */
+            color: #333;
+            padding: 0.8rem 1.2rem;
+            border: 2px solid #388e3c;
+            border-radius: 0.75rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            text-align: left;
+        }
+        .option-button:hover {
+            background-color: #8bc34a;
+            transform: translateY(-2px);
+        }
+        .option-button:active {
+            background-color: #689f38;
+            transform: translateY(0);
+        }
+        .option-button.selected {
+            background-color: #4CAF50; /* Verde cuando está seleccionado */
+            color: white;
+            border-color: #388e3c;
+        }
+        .question-timer {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+            color: #ff4500; /* Rojo anaranjado */
+            font-weight: bold;
+        }
+        /* Superposición de carga */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            font-size: 2rem;
+            color: #333;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        #loadingOverlay #loadingProgress {
+            font-size: 1.5rem;
+            color: #666;
+        }
+
+        /* Estilos de la caja de diálogo */
+        #dialogueBox {
+            position: absolute;
+            bottom: 2rem; /* Posicionar encima de los controles */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid #4CAF50;
+            border-radius: 1rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 1500;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        #dialogueText {
+            font-size: 1.2rem;
+            color: #333;
+            min-height: 3em; /* Asegurar altura consistente */
+        }
+
+        #dialogueOptions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .dialogue-option-button {
+            background-color: #81C784; /* Verde claro */
+            color: #333;
+            padding: 0.7rem 1.2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .dialogue-option-button:hover {
+            background-color: #66BB6A;
+            transform: translateY(-1px);
+        }
+        .dialogue-option-button:active {
+            background-color: #4CAF50;
+            transform: translateY(0);
+        }
+        /* Estilos de la barra de salud */
+        .health-bar-container {
+            width: 100px;
+            height: 10px;
+            background-color: #ccc;
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .health-bar {
+            height: 100%;
+            background-color: #ff4500; /* Rojo */
+            transition: width 0.2s ease-in-out;
+        }
+
+        /* Estilos del inventario (para la superposición de inventario completo) */
+        #inventoryOverlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 2500;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            color: white;
+            font-size: 1.2rem;
+            min-width: 300px;
+        }
+        .inventory-hotbar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 60px); /* 4 columnas para la barra de acceso rápido */
+            gap: 10px;
+            justify-content: center; /* Centrar la barra de acceso rápido */
+        }
+        .inventory-storage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 60px); /* 3 columnas para el almacenamiento */
+            gap: 10px;
+            justify-content: center; /* Centrar el almacenamiento en la interfaz de usuario del inventario */
+        }
+
+        /* Estilos de las ranuras del inventario (tanto para la barra de acceso rápido dibujada en canvas como para la superposición de inventario HTML) */
+        .inventory-slot {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.2); /* Más oscuro para las ranuras reales */
+            border: 2px solid #66BB6A; /* Borde verde */
+            border-radius: 0.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.1s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .inventory-slot:hover {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .inventory-slot.active {
+            border-color: #FFEB3B; /* Amarillo para la ranura activa */
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.8);
+            transform: scale(1.05); /* Ligeramente más grande la ranura activa */
+        }
+
+        .inventory-slot .item-emoji {
+            font-size: 2.5rem;
+            line-height: 1;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5));
+        }
+
+        .inventory-slot .item-count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        #draggedItemVisual {
+            position: fixed; /* Posición fija relativa a la ventana de visualización */
+            pointer-events: none; /* Ignorar eventos del ratón en este elemento */
+            z-index: 3000; /* Encima de todo */
+            display: none; /* Oculto por defecto */
+            transform: translate(-50%, -50%); /* Centrar en el cursor */
+            font-size: 2.5rem;
+            line-height: 1;
+            background-color: rgba(0,0,0,0.5);
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        /* Estilos para los números de daño flotantes */
+        .damage-number {
+            position: absolute;
+            color: red;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            animation: floatUpFadeOut 1s forwards;
+            pointer-events: none; /* Make sure it doesn't block clicks */
+            z-index: 2000; /* Above game elements but below overlays */
+        }
+
+        @keyframes floatUpFadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 1rem;
+                gap: 0.5rem;
+            }
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            .game-info div {
+                font-size: 0.9rem;
+                padding: 0.2rem 0.5rem;
+            }
+            .controls {
+                gap: 0.5rem;
+            }
+            .control-button {
+                padding: 0.6rem 1.2rem;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay">
+        Cargando recursos del juego... <span id="loadingProgress">0/0</span>
+    </div>
+
+    <div class="game-container">
+        <h1 class="text-3xl font-bold text-green-700 mb-4">Juego de Compost Casero</h1>
+        <div class="game-info">
+            <div>Compost: <span id="compost-count">0</span> / <span id="compost-max">5</span></div>
+            <div>Estado: <span id="compost-state">Esperando tierra</span></div>
+            <div>Día: <span id="day-counter">1</span> / <span id="total-days">28</span></div>
+            <div>Tiempo restante: <span id="day-timer">05:00</span></div>
+            <div>Fase: <span id="phase-indicator">Día</span></div>
+            <div>Salud: <span id="health-value">100</span>
+                <div class="health-bar-container">
+                    <div id="health-bar" class="health-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+            <button id="up-button" class="control-button">▲</button>
+            <button id="left-button" class="control-button">◀</button>
+            <button id="down-button" class="control-button">▼</button>
+            <button id="right-button" class="control-button">▶</button>
+            <button id="action-button" class="control-button">Acción (F)</button>
+        </div>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <div id="questionOverlay" class="question-overlay" style="display: none;">
+        <div class="question-box">
+            <div class="question-text" id="questionText"></div>
+            <div class="options-container" id="optionsContainer">
+                </div>
+            <div class="question-timer" id="questionTimer"></div>
+        </div>
+    </div>
+
+    <!-- Nueva caja de diálogo -->
+    <div id="dialogueBox" style="display: none;">
+        <div id="dialogueText"></div>
+        <div id="dialogueOptions"></div>
+    </div>
+
+    <!-- Superposición del inventario (para inventario completo) -->
+    <div id="inventoryOverlay" style="display: none;">
+        <h2 class="text-2xl font-bold mb-4 text-center">Inventario</h2>
+        <div class="inventory-hotbar-grid" id="fullInventoryHotbarSlots">
+            <!-- Ranuras de la barra de acceso rápido (se generarán dinámicamente aquí) -->
+        </div>
+        <h3 class="text-xl font-bold mt-4 mb-2 text-center">Almacenamiento</h3>
+        <div class="inventory-storage-grid" id="storageSlots">
+            <!-- Las ranuras de almacenamiento se generarán dinámicamente aquí -->
+        </div>
+    </div>
+
+    <!-- Elemento visual para el objeto arrastrado -->
+    <div id="draggedItemVisual" style="display: none;"></div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingProgressSpan = document.getElementById('loadingProgress');
+        const gameContainer = document.querySelector('.game-container'); // Get the game container for damage numbers
+
+        // Desactivar suavizado de imágenes para un aspecto pixelado
+        ctx.imageSmoothingEnabled = false;
+
+        // Definiciones de tamaño del juego
+        const TILE_SIZE = 20; // Tamaño de cada tile en píxeles
+        const ACTUAL_CANVAS_WIDTH = 800; // Ancho visible del canvas
+        const ACTUAL_CANVAS_HEIGHT = 600; // Alto visible del canvas
+
+        // Establecer el tamaño del canvas
+        canvas.width = ACTUAL_CANVAS_WIDTH;
+        canvas.height = ACTUAL_CANVAS_HEIGHT;
+
+        const MAP_WIDTH = 140; // Ancho del mapa en tiles
+        const MAP_HEIGHT = 100; // Alto del mapa en tiles
+
+        // Crear un canvas fuera de pantalla para el mapa estático
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+        offscreenCanvas.width = MAP_WIDTH * TILE_SIZE;
+        offscreenCanvas.height = MAP_HEIGHT * TILE_SIZE;
+        offscreenCtx.imageSmoothingEnabled = false; // Desactivar suavizado también para el offscreen canvas
+
+        // Constantes para dibujar la barra de acceso rápido
+        const HOTBAR_SLOT_SIZE = 60; // Tamaño de las ranuras para mejor interacción táctil
+        const HOTBAR_PADDING = 10; // Relleno alrededor de la barra de acceso rápido
+        const HOTBAR_SLOT_SPACING = 10; // Espacio entre ranuras de la barra de acceso rápido
+        const HOTBAR_WIDTH = (4 * HOTBAR_SLOT_SIZE) + (3 * HOTBAR_SLOT_SPACING) + (HOTBAR_PADDING * 2); // Ancho total de la barra de acceso rápido
+        const HOTBAR_HEIGHT = HOTBAR_SLOT_SIZE + (HOTBAR_PADDING * 2); // Alto total de la barra de acceso rápido
+        const HOTBAR_START_X = (ACTUAL_CANVAS_WIDTH - HOTBAR_WIDTH) / 2; // Posición X inicial de la barra de acceso rápido (centrada)
+        const HOTBAR_START_Y = ACTUAL_CANVAS_HEIGHT - HOTBAR_HEIGHT - 20; // Posición Y inicial de la barra de acceso rápido (encima de los controles)
+
+        // Diseño original de la casa
+        const originalHouseLayout = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 16, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 3, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1],
+            [1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 6, 6, 6, 5, 6, 6, 6, 2, 6, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        // Objeto jugador
+        const player = {
+            x: 39, // Posición X inicial
+            y: 32, // Posición Y inicial
+            targetX: 39, // Posición X objetivo para movimiento suave
+            targetY: 32, // Posición Y objetivo para movimiento suave
+            speed: 0.015, // Velocidad de movimiento del jugador
+            direction: 'right', // Dirección del jugador: 'left' o 'right'. Asumo player.png por defecto mira a la DERECHA.
+            health: 100, // Salud actual del jugador
+            maxHealth: 100, // Salud máxima del jugador
+            healthRegenRate: 0.5, // Puntos de salud por segundo
+            lastHealthRegenTime: 0, // Última vez que se regeneró salud
+            inventory: Array(10).fill(null), // Inventario: 4 ranuras de barra de acceso rápido (0-3), 6 ranuras de almacenamiento (4-9)
+            activeSlotIndex: 0, // Ranura de la barra de acceso rápido actualmente seleccionada (0-3)
+            attackCooldown: 500, // Tiempo de reutilización del ataque del jugador en ms
+            lastAttackTime: 0, // Última vez que el jugador atacó
+        };
+
+        // Definir el desplazamiento de la casa para la generación del mapa
+        const houseOffsetX = 30;
+        const houseOffsetY = 30;
+
+        // Punto de reaparición del jugador
+        const respawnPoint = {
+            x: houseOffsetX + Math.floor(originalHouseLayout[0].length / 2),
+            y: houseOffsetY + Math.floor(originalHouseLayout.length / 2)
+        };
+
+        // Pila de compost
+        const compostPile = {
+            x: houseOffsetX + 22, // Posición X
+            y: houseOffsetY + 12, // Posición Y
+            count: 0, // Cantidad actual de compost
+            maxCount: 5, // Cantidad máxima de compost
+        };
+
+        // Máquina de estados del compost
+        const COMPOST_STATES = {
+            NEEDS_SOIL: 'needs_soil', // Necesita tierra
+            NEEDS_MATERIAL: 'needs_material', // Necesita material orgánico
+            NEEDS_WATER: 'needs_water', // Necesita agua
+            NEEDS_STIR: 'needs_stir', // Necesita ser revuelto
+            FULL: 'full' // Compost listo
+        };
+        let compostState = COMPOST_STATES.NEEDS_SOIL; // Estado inicial del compost
+
+        // Tipos de materiales, sus preguntas e URLs de imágenes
+        const materials = {
+            soil: { color: '#8B4513', emoji: '🪨', type: 'brown', challenge: false, imageUrl: 'assets/tierra.png', displayName: 'tierra', stackable: true, maxStack: 10 },
+            eggshells: {
+                color: '#F0F8FF', emoji: '🥚', type: 'green', challenge: true, imageUrl: 'assets/huevo.png', displayName: 'cáscara de huevo', stackable: true, maxStack: 10, questions: [
+                    { text: '¿Qué nutriente principal aportan las cáscaras de huevo al compost?', options: ['A) Nitrógeno', 'B) Fósforo', 'C) Calcio', 'D) Potasio'], correctOptionIndex: 2 },
+                    { text: 'Para una mejor descomposición, ¿cómo deben añadirse las cáscaras de huevo al compost?', options: ['A) Enteras', 'B) Trituradas', 'C) Hervidas', 'D) Congeladas'], correctOptionIndex: 1 },
+                    { text: '¿Es cierto que las cáscaras de huevo ayudan a reducir la acidez del compost?', options: ['A) Sí', 'B) No'], correctOptionIndex: 0 },
+                    { text: 'Además de calcio, ¿qué otro elemento traza importante aportan las cáscaras de huevo?', options: ['A) Hierro', 'B) Magnesio', 'C) Zinc', 'D) Todos los anteriores'], correctOptionIndex: 3 },
+                    { text: '¿Cuál es la principal ventaja de añadir cáscaras de huevo al compost?', options: ['A) Acelera la descomposición', 'B) Aporta nutrientes esenciales', 'C) Repele plagas', 'D) Mejora el olor'], correctOptionIndex: 1 }
+                ]
+            },
+            bananaPeels: {
+                color: '#FFD700', emoji: '🍌', type: 'green', challenge: true, imageUrl: 'assets/platano.png', displayName: 'cáscara de banana', stackable: true, maxStack: 10, questions: [
+                    { text: '¿Qué nutriente principal aportan las cáscaras de plátano al compost?', options: ['A) Magnesio', 'B) Potasio', 'C) Hierro', 'D) Boro'], correctOptionIndex: 1 },
+                    { text: 'Las cáscaras de plátano son consideradas un material...', options: ['A) Carbonado', 'B) Nitrogenado', 'C) Neutro', 'D) Tóxico'], correctOptionIndex: 1 },
+                    { text: '¿Ayudan las cáscaras de plátano a atraer lombrices al compost?', options: ['A) Sí', 'B) No'], correctOptionIndex: 0 },
+                    { text: '¿Es necesario cortar las cáscaras de plátano antes de compostarlas?', options: ['A) Sí, para acelerar la descomposición', 'B) No, se descomponen igual', 'C) Solo si están verdes', 'D) Solo si están secas'], correctOptionIndex: 0 },
+                    { text: '¿Las cáscaras de plátano son un material "verde" o "marrón" en el compostaje?', options: ['A) Verde', 'B) Marrón', 'C) Ambos', 'D) Ninguno'], correctOptionIndex: 0 }
+                ]
+            },
+            orangePeels: {
+                color: '#FFA500', emoji: '🍊', type: 'green', challenge: true, imageUrl: 'assets/naranja.png', displayName: 'cáscara de naranja', stackable: true, maxStack: 10, questions: [
+                    { text: '¿Qué tipo de aceites contienen las cáscaras de cítricos que pueden ralentizar la descomposición?', options: ['A) Aceites esenciales', 'B) Aceites minerales', 'C) Aceites vegetales', 'D) Aceites lubricantes'], correctOptionIndex: 0 },
+                    { text: 'Para añadir cáscaras de naranja al compost, ¿es mejor cortarlas en trozos pequeños?', options: ['A) Sí', 'B) No'], correctOptionIndex: 0 },
+                    { text: 'Las cáscaras de naranja son un material con un alto contenido de...', options: ['A) Proteínas', 'B) Azúcares', 'C) Celulosa', 'D) Grasas'], correctOptionIndex: 2 },
+                    { text: '¿Cuál es el efecto principal de los aceites cítricos en el compost?', options: ['A) Atraen insectos', 'B) Ralentizan la descomposición', 'C) Aceleran la descomposición', 'D) Mejoran el olor'], correctOptionIndex: 1 },
+                    { text: '¿Es recomendable añadir grandes cantidades de cáscaras de cítricos al compost de una sola vez?', options: ['A) Sí, sin problema', 'B) No, pueden acidificar el compost', 'C) Solo si están secas', 'D) Solo si están trituradas'], correctOptionIndex: 1 }
+                ]
+            },
+            foodScraps: {
+                color: '#A9A9A9', emoji: '🍽️', type: 'green', challenge: true, imageUrl: 'assets/comida.png', displayName: 'sobras de comida', stackable: true, maxStack: 10, questions: [
+                    { text: '¿Qué tipo de sobras de alimentos NO se deben añadir al compost casero?', options: ['A) Frutas y verduras', 'B) Cáscaras de huevo', 'C) Carnes y lácteos', 'D) Granos cocidos'], correctOptionIndex: 2 },
+                    { text: 'Las sobras de pan y pasta son materiales principalmente...', options: ['A) Nitrogenados', 'B) Carbonados', 'C) Ácidos', 'D) Básicos'], correctOptionIndex: 1 },
+                    { text: '¿Es recomendable enterrar las sobras de alimentos en el centro del compost?', options: ['A) Sí, para evitar plagas', 'B) No, se pudren', 'C) Solo si son líquidas', 'D) Solo en invierno'], correctOptionIndex: 0 },
+                    { text: '¿Qué se debe hacer con las sobras de alimentos antes de añadirlas al compost para una mejor descomposición?', options: ['A) Congelarlas', 'B) Cocinarlas', 'C) Cortarlas en trozos pequeños', 'D) Secarlas al sol'], correctOptionIndex: 2 },
+                    { text: '¿Por qué no se deben añadir carnes y lácteos al compost casero?', options: ['A) Huelen mal', 'B) Atraen plagas y roedores', 'C) No se descomponen', 'D) Son tóxicos para las plantas'], correctOptionIndex: 1 }
+                ]
+            },
+            cebolla: {
+                color: '#FFDAB9', emoji: '🧅', type: 'green', challenge: true, imageUrl: 'assets/cebolla.png', displayName: 'cebolla', stackable: true, maxStack: 10, questions: [
+                    { text: '¿Qué componente de la cebolla puede ralentizar la descomposición en el compost?', options: ['A) Azúcares', 'B) Compuestos de azufre', 'C) Agua', 'D) Fibra'], correctOptionIndex: 1 },
+                    { text: '¿Es recomendable añadir grandes cantidades de cebolla cruda al compost de una sola vez?', options: ['A) Sí, es muy beneficioso', 'B) No, puede atraer plagas y olores', 'C) Solo si está cocida', 'D) Solo en invierno'], correctOptionIndex: 1 },
+                    { text: 'Para una mejor descomposición, ¿cómo es mejor añadir la cebolla al compost?', options: ['A) Entera', 'B) Cortada en trozos pequeños', 'C) Hervida', 'D) Seca'], correctOptionIndex: 1 },
+                    { text: '¿Las cebollas son un material "verde" o "marrón" en el compostaje?', options: ['A) Verde', 'B) Marrón', 'C) Ambos', 'D) Ninguno'], correctOptionIndex: 0 },
+                    { text: '¿Qué tipo de material se debe mezclar con la cebolla en el compost para equilibrar la relación carbono-nitrógeno?', options: ['A) Más cebolla', 'B) Restos de fruta', 'C) Materiales ricos en carbono (marrón)', 'D) Agua'], correctOptionIndex: 2 }
+                ]
+            },
+            water: { color: '#87CEEB', emoji: '💧', type: 'liquid', challenge: false, imageUrl: 'assets/agua.png', displayName: 'agua', stackable: true, maxStack: 10 },
+            
+            sword: { color: '#A9A9A9', emoji: '🗡️', type: 'weapon', challenge: false, imageUrl: 'assets/sword.png', displayName: 'espada', stackable: false, damage: 30 },
+            shovel: { color: '#B0885F', emoji: ' 🪚', type: 'tool', challenge: false, imageUrl: 'assets/shovel.png', displayName: 'Pala', stackable: false },
+            wateringCan: { color: '#6A5ACD', emoji: ' 🚰', type: 'tool', challenge: false, imageUrl: 'assets/watering_can.png', displayName: 'Regadera', stackable: false },
+
+            // Objetos que crecen (frutas/verduras/hierbas)
+            carrot: { color: '#FFA500', emoji: '🥕', type: 'fruit', challenge: false, imageUrl: 'assets/carrot.png', displayName: 'zanahoria', stackable: true, maxStack: 10 },
+            tomato: { color: '#FF6347', emoji: '🍅', type: 'fruit', challenge: false, imageUrl: 'assets/tomato.png', displayName: 'tomate', stackable: true, maxStack: 10 },
+            hierbabuena: { id: 'hierbabuena', displayName: 'Hierbabuena', emoji: '🌿', type: 'herb', imageUrl: 'assets/hierbabuena.png', stackable: true, maxStack: 10 },
+            oregano: { id: 'oregano', displayName: 'Orégano', emoji: '🍃', type: 'herb', imageUrl: 'assets/oregano.png', stackable: true, maxStack: 10 },
+            romero: { id: 'romero', displayName: 'Romero', emoji: '🌲', type: 'herb', imageUrl: 'assets/romero.png', stackable: true, maxStack: 10 },
+            albahaca: { id: 'albahaca', displayName: 'Albahaca', emoji: '🌱', type: 'herb', imageUrl: 'assets/albahaca.png', stackable: true, maxStack: 10 },
+            cilantro: { id: 'cilantro', displayName: 'Cilantro', emoji: '🍀', type: 'herb', imageUrl: 'assets/cilantro.png', stackable: true, maxStack: 10 },
+            cilantroCimarron: { id: 'cilantroCimarron', displayName: 'Cilantro Cimarrón', emoji: '🌾', type: 'herb', imageUrl: 'assets/cilantro_cimarron.png', stackable: true, maxStack: 10 },
+
+            // Semillas (objetos que se plantan y "crecen a" otros objetos)
+            carrotSeed: { color: '#FFA500', emoji: '🥕', type: 'seed', growsTo: 'carrot', challenge: false, imageUrl: 'assets/carrot_seed.png', displayName: 'semilla de zanahoria', stackable: true, maxStack: 10, growthTime: 3 }, // growthTime in days
+            tomatoSeed: { color: '#FF6347', emoji: '🍅', type: 'seed', growsTo: 'tomato', challenge: false, imageUrl: 'assets/tomato_seed.png', displayName: 'semilla de tomate', stackable: true, maxStack: 10, growthTime: 4 }, // growthTime in days
+            seed_hierbabuena: { id: 'seed_hierbabuena', displayName: 'Semilla de Hierbabuena', emoji: '🌱', type: 'seed', growsTo: 'hierbabuena', challenge: false, imageUrl: 'assets/seed_hierbabuena.png', stackable: true, maxStack: 10, growthTime: 2 },
+            seed_oregano: { id: 'seed_oregano', displayName: 'Semilla de Orégano', emoji: '🌿', type: 'seed', growsTo: 'oregano', challenge: false, imageUrl: 'assets/seed_oregano.png', stackable: true, maxStack: 10, growthTime: 3 },
+            seed_romero: { id: 'seed_romero', displayName: 'Semilla de Romero', emoji: '🌲', type: 'seed', growsTo: 'romero', challenge: false, imageUrl: 'assets/seed_romero.png', stackable: true, maxStack: 10, growthTime: 5 },
+            seed_albahaca: { id: 'seed_albahaca', displayName: 'Semilla de Albahaca', emoji: '🍃', type: 'seed', growsTo: 'albahaca', challenge: false, imageUrl: 'assets/seed_albahaca.png', stackable: true, maxStack: 10, growthTime: 2 },
+            seed_cilantro: { id: 'seed_cilantro', displayName: 'Semilla de Cilantro', emoji: '🍀', type: 'seed', growsTo: 'cilantro', challenge: false, imageUrl: 'assets/seed_cilantro.png', stackable: true, maxStack: 10, growthTime: 1 }, // Cilantro grows fast!
+            seed_cilantroCimarron: { id: 'seed_cilantroCimarron', displayName: 'Semilla de Cilantro Cimarrón', emoji: '🌾', type: 'seed', growsTo: 'cilantroCimarron', challenge: false, imageUrl: 'assets/seed_cilantro_cimarron.png', stackable: true, maxStack: 10, growthTime: 4 },
+        };
+
+        // Global variables for asset loading
+        const loadedImages = {}; // Stores loaded images
+        const imageLoadedSuccessfully = {}; // Indicates if an image loaded successfully
+        let assetsToLoad = 0; // Counter for assets to load
+        let assetsLoaded = 0; // Counter for loaded assets
+        let gameInitialized = false; // Flag to check if game has been initialized
+
+        // --- Definición de todas las URLs de imágenes a cargar ---
+        const imageUrlsToLoad = [
+            'assets/player.png',
+            'assets/compost_bin.png', // Assuming you have an image for the compost bin
+            'assets/tierra.png', 
+            'assets/huevo.png', 
+            'assets/platano.png', 
+            'assets/naranja.png', 
+            'assets/comida.png', 
+            'assets/cebolla.png',
+            'assets/agua.png', 
+            'assets/sword.png',
+            'assets/shovel.png', 
+            'assets/watering_can.png', 
+            'assets/carrot.png', 
+            'assets/tomato.png', 
+            'assets/hierbabuena.png', 
+            'assets/oregano.png', 
+            'assets/romero.png', 
+            'assets/albahaca.png', 
+            'assets/cilantro.png', 
+            'assets/cilantro_cimarron.png', 
+            'assets/carrot_seed.png', 
+            'assets/tomato_seed.png', 
+            'assets/seed_hierbabuena.png', 
+            'assets/seed_oregano.png', 
+            'assets/seed_romero.png', 
+            'assets/seed_albahaca.png', 
+            'assets/seed_cilantro.png', 
+            'assets/seed_cilantro_cimarron.png', 
+        ];
+        assetsToLoad = imageUrlsToLoad.length; // El número total de assets a cargar
+
+        // Update initial loading progress display
+        loadingProgressSpan.textContent = `${assetsLoaded}/${assetsToLoad}`;
+
+
+        const monsterTypes = {
+            slime: { color: '#76FF03', emoji: '🦠', health: 30, damage: 5, speed: 0.005, attackCooldown: 1000, hitFlashTime: 200, drop: { type: 'seed', count: 1 } },
+            goblin: { color: '#8B0000', emoji: '👹', health: 50, damage: 8, speed: 0.007, attackCooldown: 1500, hitFlashTime: 200, drop: { type: 'seed', count: 2 } },
+        };
+        const MAX_ACTIVE_MONSTERS = 5; // Máximo de monstruos activos en el mapa
+        const MONSTER_SPAWN_INTERVAL_MS = 15000; // Intervalo de aparición de monstruos en ms
+        let lastMonsterSpawnTime = 0; // Última vez que apareció un monstruo
+        let monsters = []; // Initialize monsters array
+        const damagePopups = []; // Array to store active damage numbers
+
+        // Pool de todos los materiales dinámicos posibles (excluyendo tierra y agua que son fuentes)
+        const materialPool = [
+            'eggshells', 'bananaPeels', 'orangePeels', 'foodScraps', 'cebolla', 'carrotSeed', 'tomatoSeed',
+            'seed_hierbabuena', 'seed_oregano', 'seed_romero', 'seed_albahaca', 'seed_cilantro', 'seed_cilantroCimarron'
+        ];
+
+        // Materiales dinámicos actualmente en el mapa
+        let currentMaterials = [];
+
+        // Objeto para el señalizador del ratón
+        const crosshair = {
+            x: 0, // Posición X del tile del mundo
+            y: 0, // Posición Y del tile del mundo
+            visible: false
+        };
+
+        // Elementos de la interfaz de usuario
+        const compostCountSpan = document.getElementById('compost-count');
+        const compostMaxSpan = document.getElementById('compost-max');
+        const compostStateSpan = document.getElementById('compost-state');
+        const messageBox = document.getElementById('messageBox');
+        const dayCounterSpan = document.getElementById('day-counter');
+        const totalDaysSpan = document.getElementById('total-days'); // Nuevo span para el total de días
+        const dayTimerSpan = document.getElementById('day-timer');
+        const phaseIndicatorSpan = document.getElementById('phase-indicator');
+        const healthValueSpan = document.getElementById('health-value');
+        const healthBar = document.getElementById('health-bar');
+        
+        const questionOverlay = document.getElementById('questionOverlay');
+        const questionTextElement = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const questionTimerElement = document.getElementById('questionTimer');
+
+        const dialogueBox = document.getElementById('dialogueBox');
+        const dialogueTextElement = document.getElementById('dialogueText');
+        const dialogueOptionsElement = document.getElementById('dialogueOptions');
+        let dialogueActive = false; // Bandera para saber si el diálogo está activo
+
+        // Elementos de la interfaz de usuario del inventario
+        const inventoryOverlay = document.getElementById('inventoryOverlay');
+        const fullInventoryHotbarSlotsContainer = document.getElementById('fullInventoryHotbarSlots'); // Para la barra de acceso rápido dentro del inventario completo
+        const storageSlotsContainer = document.getElementById('storageSlots'); // Para las ranuras de almacenamiento
+        const draggedItemVisual = document.getElementById('draggedItemVisual'); // Elemento visual del objeto arrastrado
+        let inventoryOpen = false; // Bandera para saber si el inventario está abierto
+        let draggingItem = null; // Almacena { item: {type, count}, originalSlotIndex } cuando se arrastra un objeto
+
+        // Sistema de tiempo del juego
+        let gameDay = 1; // Día actual del juego
+        const TOTAL_GAME_DAYS = 28; // 4 semanas * 7 días/semana
+        let gameStartTime = 0; // Hora de inicio del juego (timestamp)
+        const dayDurationSeconds = 300; // Duración del día en segundos (5 minutos)
+        const nightDurationSeconds = 300; // Duración de la noche en segundos (5 minutos)
+        const totalCycleDurationSeconds = dayDurationSeconds + nightDurationSeconds; // Duración total de un ciclo día/noche
+        let isNight = false; // Bandera para saber si es de noche
+        let gameRunning = true; // Bandera para saber si el juego está en ejecución
+
+        // Sistema de desafíos/preguntas
+        let questionActive = false; // Bandera para saber si una pregunta está activa
+        let currentMaterialToCollect = null; // Material que se intenta recolectar con la pregunta
+        let currentQuestionData = null; // Datos de la pregunta actual
+        let questionStartTime = 0; // Hora de inicio de la pregunta
+        const QUESTION_DURATION_MS = 10000; // Duración de la pregunta en ms (10 segundos)
+        let selectedOptionIndex = -1; // Índice de la opción seleccionada en la pregunta
+
+        // Aparición/desaparición de materiales
+        const MAX_ACTIVE_MATERIALS = 8; // Máximo de materiales activos en el mapa
+        const MATERIAL_SPAWN_INTERVAL_MS = 8000; // Intervalo de aparición de materiales en ms
+        const MATERIAL_DESPAWN_TIME_MS = 30000; // Tiempo de desaparición de materiales en ms
+        let lastMaterialSpawnTime = 0; // Última vez que apareció un material
+
+        // Estado de las parcelas de la huerta (ahora en el canvas)
+        // Un array de objetos, donde cada objeto representa una parcela plantada.
+        const plantedFarmPlots = []; 
+
+        // Inicialización del mapa y ubicaciones de árboles
+        const gameMap = [];
+        const treeLocations = [];
+
+        // Llenar el mapa con tiles de césped por defecto
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            gameMap[y] = [];
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                gameMap[y][x] = 8; // Tile de césped
+            }
+        }
+
+        // Colocar el diseño de la casa en el mapa
+        for (let y = 0; y < originalHouseLayout.length; y++) {
+            for (let x = 0; x < originalHouseLayout[y].length; x++) {
+                const newMapX = houseOffsetX + x;
+                const newMapY = houseOffsetY + y;
+                if (newMapX < MAP_WIDTH && newMapY < MAP_HEIGHT) {
+                    gameMap[newMapY][newMapX] = originalHouseLayout[y][x];
+                }
+            }
+        }
+
+        // Definir la puerta de salida al patio
+        const patioExitDoorX = houseOffsetX + 24;
+        const patioExitDoorY = houseOffsetY + 10;
+        if (patioExitDoorX < MAP_WIDTH && patioExitDoorY < MAP_HEIGHT) {
+            gameMap[patioExitDoorY][patioExitDoorX] = 7; // Tile de puerta
+            if (patioExitDoorX + 1 < MAP_WIDTH) {
+                gameMap[patioExitDoorY][patioExitDoorX + 1] = 8; // Asegurar césped al lado de la puerta
+            }
+        }
+
+        // Función para verificar si una coordenada está dentro del área de la casa
+        const isWithinHouseArea = (x, y) => {
+            return (x >= houseOffsetX && x < houseOffsetX + originalHouseLayout[0].length &&
+                    y >= houseOffsetY && y < originalHouseLayout.length);
+        };
+
+        // Generar ríos aleatorios
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            if (y % 15 === 0 && y > houseOffsetY + originalHouseLayout.length + 5) {
+                let riverStartX = Math.floor(Math.random() * (MAP_WIDTH - 20));
+                let riverWidth = Math.floor(Math.random() * 3) + 2;
+                for (let x = riverStartX; x < riverStartX + riverWidth; x++) {
+                    if (x < MAP_WIDTH && y < MAP_HEIGHT && gameMap[y][x] === 8 && !isWithinHouseArea(x, y)) {
+                        gameMap[y][x] = 10; // Tile de río
+                    }
+                }
+            }
+        }
+
+        // Generar árboles aleatorios
+        for (let i = 0; i < 200; i++) {
+            let treeX = Math.floor(Math.random() * MAP_WIDTH);
+            let treeY = Math.floor(Math.random() * MAP_HEIGHT);
+            // Asegurarse de que el árbol no se superponga con la casa, ríos o caminos
+            if (gameMap[treeY][treeX] === 8 && !isWithinHouseArea(treeX, treeY) && gameMap[treeY][treeX] !== 10 && gameMap[treeY][treeX] !== 11) {
+                gameMap[treeY][treeX] = 9; // Tile de árbol
+                treeLocations.push({x: treeX, y: treeY}); // Guardar ubicación del árbol
+            }
+        }
+
+        // Generar caminos
+        for (let y = houseOffsetY + originalHouseLayout[0].length - 2; y < MAP_HEIGHT; y++) {
+            const pathX = houseOffsetX + originalHouseLayout[0].length - 2;
+            if (gameMap[y][pathX] === 8 || gameMap[y][pathX] === 6) {
+                gameMap[y][pathX] = 11; // Tile de camino
+            }
+        }
+        for (let x = houseOffsetX + originalHouseLayout[0].length - 2; x < MAP_WIDTH; x++) {
+            const pathY = houseOffsetY + originalHouseLayout.length - 2;
+            if (gameMap[pathY][x] === 8 || gameMap[pathY][x] === 6) {
+                gameMap[pathY][x] = 11; // Tile de camino
+            }
+        }
+        for (let i = 0; i < 40; i++) {
+            let pathStartX = Math.floor(Math.random() * MAP_WIDTH);
+            let pathStartY = Math.floor(Math.random() * MAP_HEIGHT);
+            let pathLength = Math.floor(Math.random() * 20) + 10;
+            let direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+
+            for (let j = 0; j < pathLength; j++) {
+                let currentX = pathStartX;
+                let currentY = pathStartY;
+                if (direction === 'horizontal') {
+                    currentX = (pathStartX + j);
+                } else {
+                    currentY = (pathStartY + j);
+                }
+
+                if (currentX >= 0 && currentX < MAP_WIDTH && currentY >= 0 && currentY < MAP_HEIGHT) {
+                    const tileType = gameMap[currentY][currentX];
+                    // Asegurarse de que el camino no se superponga con la casa, árboles o ríos
+                    if ((tileType === 8 || tileType === 6) && !isWithinHouseArea(currentX, currentY) && tileType !== 9 && tileType !== 10) {
+                        gameMap[currentY][currentX] = 11; // Tile de camino
+                    }
+                }
+            }
+        }
+
+        // Función para colocar lagos
+        const placeLake = (size, count) => {
+            const lakeTileType = size === 'small' ? 12 : 13; // Tipo de tile de lago (pequeño o grande)
+            const minDim = size === 'small' ? 3 : 8; // Dimensión mínima del lago
+            const maxDim = size === 'small' ? 5 : 15; // Dimensión máxima del lago
+
+            for (let i = 0; i < count; i++) {
+                let lakeWidth = Math.floor(Math.random() * (maxDim - minDim + 1)) + minDim;
+                let lakeHeight = Math.floor(Math.random() * (maxDim - minDim + 1)) + minDim;
+                let lakeX = Math.floor(Math.random() * (MAP_WIDTH - lakeWidth));
+                let lakeY = Math.floor(Math.random() * (MAP_HEIGHT - lakeHeight));
+
+                let canPlace = true;
+                // Verificar si se puede colocar el lago sin superponerse con otros elementos
+                for (let y = lakeY; y < lakeY + lakeHeight; y++) {
+                    for (let x = lakeX; x < lakeX + lakeWidth; x++) {
+                        if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT || isWithinHouseArea(x, y) || gameMap[y][x] === 9 || gameMap[y][x] === 10 || gameMap[y][x] === 11) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (!canPlace) break;
+                }
+
+                // Si se puede colocar, dibujar el lago
+                if (canPlace) {
+                    for (let y = lakeY; y < lakeY + lakeHeight; y++) {
+                        for (let x = lakeX; x < lakeX + lakeWidth; x++) {
+                            gameMap[y][x] = lakeTileType;
+                        }
+                    }
+                }
+            }
+        };
+
+        placeLake('small', 5); // Colocar 5 lagos pequeños
+        placeLake('large', 2); // Colocar 2 lagos grandes
+
+        // Colores para las flores
+        const flowerColors = ['#FFC107', '#E91E63', '#9C27B0', '#2196F3'];
+        // Generar arbustos y flores aleatoriamente en el césped
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                if (gameMap[y][x] === 8) { // Si es un tile de césped
+                    if (Math.random() < 0.05) {
+                        gameMap[y][x] = 14; // Arbusto
+                    } else if (Math.random() < 0.03) {
+                        gameMap[y][x] = 15; // Flor
+                    }
+                }
+            }
+        }
+        // Ajustar algunas flores para que aparezcan cerca de los arbustos
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                if (gameMap[y][x] === 14) { // Si es un arbusto
+                    if (Math.random() < 0.1) {
+                        gameMap[y][x] = 15; // Cambiar a flor (para que haya más variedad)
+                    }
+                }
+            }
+        }
+
+        // Nuevas semillas de hierbas disponibles para que los monstruos las suelten
+        const herbSeedTypes = [
+            'seed_hierbabuena', 'seed_oregano', 'seed_romero', 'seed_albahaca', 'seed_cilantro', 'seed_cilantroCimarron'
+        ];
+
+        // Probabilidades para el drop de semillas de hierbas
+        const herbSeedProbabilities = {
+            'seed_hierbabuena': 0.20,
+            'seed_oregano': 0.15,
+            'seed_romero': 0.10,
+            'seed_albahaca': 0.20,
+            'seed_cilantro': 0.25,
+            'seed_cilantroCimarron': 0.10
+        };
+
+        /**
+         * Carga una imagen y actualiza el progreso de carga.
+         * @param {string} name - El nombre bajo el cual se almacenará la imagen en loadedImages.
+         * @param {string} src - La URL de la imagen.
+         */
+        function loadImage(name, src) {
+            const img = new Image(); // Crear un nuevo objeto Image
+            img.src = src; // Establecer la fuente de la imagen
+            img.onload = () => {
+                loadedImages[name] = img; // Almacenar la imagen cargada
+                imageLoadedSuccessfully[name] = true; // Marcar como cargada exitosamente
+                assetsLoaded++; // Incrementar el contador de activos cargados
+                loadingProgressSpan.textContent = `${assetsLoaded}/${assetsToLoad}`; // Actualizar el progreso en la UI
+                console.log(`[LOAD] Loaded: ${name} (${assetsLoaded}/${assetsToLoad})`);
+                checkAllAssetsLoaded(); // Verificar si todos los activos han cargado
+            };
+            img.onerror = () => {
+                console.error(`[LOAD ERROR] Failed to load: ${src}. Using fallback. (${assetsLoaded}/${assetsToLoad})`);
+                loadedImages[name] = null; // Establecer como nulo si hay error
+                imageLoadedSuccessfully[name] = false; // Marcar como fallo de carga
+                assetsLoaded++; // Incrementar el contador de activos cargados (incluso con error)
+                loadingProgressSpan.textContent = `${assetsLoaded}/${assetsToLoad}`; // Actualizar el progreso en la UI
+                checkAllAssetsLoaded(); // Verificar si todos los activos han cargado
+            };
+        }
+
+        /**
+         * Verifica si todos los activos (imágenes) han sido cargados y pre-renderiza el mapa e inicializa el juego si es así.
+         */
+        function checkAllAssetsLoaded() {
+            console.log(`[CHECK] Assets loaded: ${assetsLoaded}, Assets to load: ${assetsToLoad}, Game initialized: ${gameInitialized}`);
+            if (assetsLoaded === assetsToLoad && !gameInitialized) {
+                console.log("Todos los activos (imágenes) cargados. Pre-renderizando mapa estático e iniciando juego.");
+                try { 
+                    drawStaticMap(); // Dibuja el mapa estático una vez
+                    gameInitialized = true; // Marcar el juego como inicializado
+                    loadingOverlay.style.display = 'none'; // Ocultar la pantalla de carga
+                    console.log("Loading overlay hidden."); // Confirm overlay is hidden
+                    gameStartTime = performance.now(); // Establecer la hora de inicio del juego
+                    player.lastHealthRegenTime = performance.now(); // Inicializar el tiempo de regeneración de salud
+                    lastMaterialSpawnTime = performance.now(); // Inicializar el tiempo de aparición de materiales
+                    lastMonsterSpawnTime = performance.now(); // Inicializar el tiempo de aparición de monstruos
+                    respawnMaterials(); // Hacer aparecer los materiales iniciales
+                    addInitialItemsToInventory(); // Añadir la espada y otros items iniciales
+                    totalDaysSpan.textContent = TOTAL_GAME_DAYS; // Actualizar el total de días en la UI
+                    showMessage('¡Bienvenido al Juego de Compost Casero! Tienes 4 semanas para crear compost perfecto. ¡Cada día dura 5 minutos!', 4000);
+                    requestAnimationFrame(gameLoop); // Iniciar el bucle del juego
+                } catch (error) {
+                    console.error("Error durante la inicialización del juego:", error);
+                    showMessage("Error al iniciar el juego. Por favor, revisa la consola para más detalles.", 5000);
+                }
+            }
+        }
+
+        // --- Iniciar la carga de imágenes ---
+        imageUrlsToLoad.forEach(url => {
+            // Extraer el nombre de la imagen para usarlo como clave en loadedImages
+            const name = url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('.'));
+            loadImage(name, url);
+        });
+        // -----------------------------------
+
+
+        let messageTimeout; // Temporizador para ocultar el mensaje
+        /**
+         * Muestra un mensaje en la caja de mensajes durante una duración determinada.
+         * @param {string} msg - El mensaje a mostrar.
+         * @param {number} duration - La duración en milisegundos para mostrar el mensaje.
+         */
+        const showMessage = (msg, duration) => {
+            clearTimeout(messageTimeout); // Limpiar cualquier temporizador anterior
+            messageBox.textContent = msg; // Establecer el texto del mensaje
+            messageBox.style.display = 'block'; // Mostrar la caja de mensajes
+            messageTimeout = setTimeout(() => {
+                messageBox.style.display = 'none'; // Ocultar la caja de mensajes después de la duración
+            }, duration);
+        };
+
+        /**
+         * Añade un objeto al inventario del jugador, manejando el apilamiento.
+         * @param {string} type - El tipo de objeto (ej., 'soil', 'sword').
+         * @param {number} count - La cantidad de objetos a añadir.
+         */
+        const addItemToInventory = (type, count = 1) => {
+            const itemDef = materials[type]; // Obtener la definición del material o semilla
+            if (!itemDef) {
+                console.error(`Se intentó añadir un tipo de objeto desconocido: ${type}`);
+                return;
+            }
+
+            if (itemDef.stackable) {
+                // Intentar apilar en ranuras existentes
+                for (let i = 0; i < player.inventory.length; i++) {
+                    const slot = player.inventory[i];
+                    if (slot && slot.type === type && slot.count < itemDef.maxStack) {
+                        const spaceLeft = itemDef.maxStack - slot.count;
+                        const amountToAdd = Math.min(count, spaceLeft);
+                        slot.count += amountToAdd;
+                        count -= amountToAdd;
+                        if (count === 0) {
+                            updateInventoryUI(inventoryOpen); // Actualizar UI si se añade algo
+                            return; // Todo el objeto fue añadido
+                        }
+                    }
+                }
+            }
+
+            // Añadir a ranuras vacías
+            while (count > 0) {
+                let added = false;
+                for (let i = 0; i < player.inventory.length; i++) {
+                    if (!player.inventory[i]) {
+                        const amountToAdd = itemDef.stackable ? Math.min(count, itemDef.maxStack) : 1;
+                        player.inventory[i] = { type: type, count: amountToAdd };
+                        count -= amountToAdd;
+                        added = true;
+                        break;
+                    }
+                }
+                if (!added) {
+                    showMessage('Inventario lleno. No se pudo añadir el objeto.', 1500);
+                    break; // No hay más espacio en el inventario
+                }
+            }
+            updateInventoryUI(inventoryOpen); // Actualizar UI si se añade algo
+        };
+
+        /**
+         * Elimina un objeto de una ranura específica del inventario.
+         * @param {number} slotIndex - El índice de la ranura de la que se eliminará.
+         * @param {number} count - La cantidad de objetos a eliminar.
+         * @returns {boolean} Verdadero si los objetos fueron eliminados, falso en caso contrario.
+         */
+        const removeItemFromInventory = (slotIndex, count = 1) => {
+            const slot = player.inventory[slotIndex];
+            if (slot && slot.count >= count) {
+                slot.count -= count;
+                if (slot.count === 0) {
+                    player.inventory[slotIndex] = null; // Eliminar el objeto si la cuenta llega a cero
+                }
+                updateInventoryUI(inventoryOpen); // Actualizar UI si se elimina algo
+                return true;
+            }
+            return false;
+        };
+
+        /**
+         * Añade objetos iniciales al inventario del jugador (ej., espada).
+         */
+        const addInitialItemsToInventory = () => {
+            addItemToInventory('sword', 1);
+            addItemToInventory('shovel', 1);
+            addItemToInventory('wateringCan', 1);
+            addItemToInventory('soil', 5);
+            addItemToInventory('bananaPeels', 3);
+            addItemToInventory('seed_hierbabuena', 2);
+            addItemToInventory('seed_cilantro', 1);
+        };
+
+        /**
+         * Genera un material aleatorio del pool en un tile transitable aleatorio.
+         */
+        const spawnRandomMaterial = () => {
+            // Filtrar tipos de materiales disponibles que no estén ya en el mapa
+            const availableMaterialTypes = materialPool.filter(type => {
+                return !currentMaterials.some(m => m.type === type && !m.collected);
+            });
+
+            if (availableMaterialTypes.length === 0) {
+                return; // No hay materiales disponibles para generar
+            }
+
+            // Limitar la cantidad de materiales activos en el mapa
+            if (currentMaterials.filter(m => !m.collected && materialPool.includes(m.type)).length >= MAX_ACTIVE_MATERIALS) {
+                return;
+            }
+
+            const randomMaterialType = availableMaterialTypes[Math.floor(Math.random() * availableMaterialTypes.length)];
+            let randomX, randomY;
+            let foundValidSpot = false;
+
+            let attempts = 0;
+            const MAX_ATTEMPTS = 200; // Máximo de intentos para encontrar un lugar válido
+
+            // Intentar encontrar un lugar válido fuera de la casa primero
+            while (!foundValidSpot && attempts < MAX_ATTEMPTS) {
+                randomX = Math.floor(Math.random() * MAP_WIDTH);
+                randomY = Math.floor(Math.random() * MAP_HEIGHT);
+
+                const tileType = gameMap[randomY][randomX];
+                // Verificar si el tile es transitable y adecuado para materiales
+                const isWalkableForMaterialSpawn = (tileType === 8 || tileType === 11 || tileType === 14 || tileType === 15);
+
+                // Verificar si el lugar está ocupado por el jugador, compost, fuente, otro material, monstruo, o es un obstáculo
+                const isOccupiedByPlayer = Math.round(player.x) === randomX && Math.round(player.y) === randomY;
+                const isOccupiedByCompost = compostPile.x === randomX && compostPile.y === randomY;
+                const isOccupiedBySource = tileType === 4 || tileType === 5;
+                const isOccupiedByOtherMaterial = currentMaterials.some(m => m.x === randomX && m.y === randomY && !m.collected);
+                const isOccupiedByMonster = monsters.some(m => Math.round(m.x) === randomX && Math.round(m.y) === randomY);
+                const isObstacle = (tileType === 1 || tileType === 3 || tileType === 9 || tileType === 10 || tileType === 12 || tileType === 13 || tileType === 16 || tileType === 17 || tileType === 18 || tileType === 19);
+
+                // Asegurarse de que esté fuera del área de la casa
+                const isOutsideHouse = !(randomX >= houseOffsetX && randomX < houseOffsetX + originalHouseLayout[0].length &&
+                                         randomY >= houseOffsetY && randomY < originalHouseLayout.length);
+
+                if (isWalkableForMaterialSpawn && !isOccupiedByPlayer && !isOccupiedByCompost && !isOccupiedBySource && !isOccupiedByOtherMaterial && !isOccupiedByMonster && !isObstacle && isOutsideHouse) {
+                    foundValidSpot = true;
+                }
+                attempts++;
+            }
+
+            // Si no se encontró un lugar fuera, intentar encontrarlo en cualquier lugar transitable adecuado
+            if (!foundValidSpot) {
+                attempts = 0;
+                while (!foundValidSpot && attempts < MAX_ATTEMPTS) {
+                    randomX = Math.floor(Math.random() * MAP_WIDTH);
+                    randomY = Math.floor(Math.random() * MAP_HEIGHT);
+
+                    const tileType = gameMap[randomY][randomX];
+                    const isWalkableForMaterialSpawn = (tileType === 0 || tileType === 6 || tileType === 8 || tileType === 11 || tileType === 14 || tileType === 15);
+                    const isOccupiedByPlayer = Math.round(player.x) === randomX && Math.round(player.y) === randomY;
+                    const isOccupiedByCompost = compostPile.x === randomX && compostPile.y === randomY;
+                    const isOccupiedBySource = tileType === 4 || tileType === 5;
+                    const isOccupiedByOtherMaterial = currentMaterials.some(m => m.x === randomX && m.y === randomY && !m.collected);
+                    const isOccupiedByMonster = monsters.some(m => Math.round(m.x) === randomX && Math.round(m.y) === randomY);
+                    const isObstacle = (tileType === 9 || tileType === 10 || tileType === 12 || tileType === 13 || tileType === 16 || tileType === 17 || tileType === 18 || tileType === 19);
+
+                    if (isWalkableForMaterialSpawn && !isOccupiedByPlayer && !isOccupiedByCompost && !isOccupiedBySource && !isOccupiedByOtherMaterial && !isOccupiedByMonster && !isObstacle) {
+                        foundValidSpot = true;
+                    }
+                    attempts++;
+                }
+            }
+
+            // Si se encontró un lugar válido, añadir el material a la lista de materiales actuales
+            if (foundValidSpot) {
+                currentMaterials.push({
+                    type: randomMaterialType,
+                    x: randomX,
+                    y: randomY,
+                    collected: false, // Marcar como no recolectado
+                    questionIndex: 0, // Índice de la pregunta para desafíos
+                    spawnTime: performance.now() // Registrar el tiempo de aparición
+                });
+            }
+        };
+
+        /**
+         * Regenera todos los materiales dinámicos recolectados en sus posiciones iniciales.
+         */
+        const respawnMaterials = () => {
+            currentMaterials = []; // Limpiar todos los materiales actuales
+            for (let i = 0; i < MAX_ACTIVE_MATERIALS; i++) {
+                spawnRandomMaterial(); // Generar nuevos materiales
+            }
+            // showMessage('¡Nuevos materiales orgánicos han aparecido!', 2000); // Comentar para evitar spam
+        };
+
+        /**
+         * Genera un monstruo aleatorio en un tile transitable fuera de la casa.
+         */
+        const spawnRandomMonster = () => {
+            if (monsters.length >= MAX_ACTIVE_MONSTERS) {
+                console.log("Máximo de monstruos alcanzado, no se generarán más.");
+                return; // Limitar la cantidad de monstruos
+            }
+
+            const monsterTypesArray = Object.keys(monsterTypes); // Obtener los tipos de monstruos disponibles
+            const randomMonsterType = monsterTypesArray[Math.floor(Math.random() * monsterTypesArray.length)]; // Seleccionar un tipo aleatorio
+            const monsterDef = monsterTypes[randomMonsterType]; // Obtener la definición del monstruo
+
+            let randomX, randomY;
+            let foundValidSpot = false;
+            let attempts = 0;
+            const MAX_ATTEMPTS = 200; // Máximo de intentos para encontrar un lugar
+
+            // Intentar encontrar un lugar válido fuera de la casa
+            while (!foundValidSpot && attempts < MAX_ATTEMPTS) {
+                randomX = Math.floor(Math.random() * MAP_WIDTH);
+                randomY = Math.floor(Math.random() * MAP_HEIGHT);
+
+                const tileType = gameMap[randomY][randomX];
+                // Los monstruos deben aparecer en césped (8), camino (11) o patio (6) y fuera de la casa
+                const isWalkableForMonsterSpawn = (tileType === 8 || tileType === 11 || tileType === 6);
+
+                // Verificar si el lugar está ocupado por el jugador, compost, fuente, material, NPC u otro monstruo
+                const isOccupiedByPlayer = Math.round(player.x) === randomX && Math.round(player.y) === randomY;
+                const isOccupiedByCompost = compostPile.x === randomX && compostPile.y === randomY;
+                const isOccupiedBySource = tileType === 4 || tileType === 5;
+                const isOccupiedByMaterial = currentMaterials.some(m => m.x === randomX && m.y === randomY && !m.collected);
+                const isOccupiedByNPC = (randomX === elara.x && randomY === elara.y) ||
+                                         (randomX === silasVane.x && silasVane.y) ||
+                                         (randomX === compostGuru.x && randomY === compostGuru.y); // Check for new NPC
+                const isOccupiedByOtherMonster = monsters.some(m => Math.round(m.x) === randomX && Math.round(m.y) === randomY);
+
+                // Verificar si es un obstáculo que bloquea la aparición (no el jugador/NPC/materiales)
+                const isObstacle = (tileType === 1 || tileType === 3 || tileType === 9 || tileType === 10 || tileType === 12 || tileType === 13 || tileType === 16 || tileType === 17 || tileType === 18 || tileType === 19);
+
+                // Asegurarse de que esté fuera del área de la casa
+                const isOutsideHouse = !(randomX >= houseOffsetX && randomX < houseOffsetX + originalHouseLayout[0].length &&
+                                         randomY >= houseOffsetY && randomY < originalHouseLayout.length);
+
+                if (isWalkableForMonsterSpawn && !isOccupiedByPlayer && !isOccupiedByCompost && !isOccupiedBySource && !isOccupiedByMaterial && !isOccupiedByNPC && !isOccupiedByOtherMonster && !isObstacle && isOutsideHouse) {
+                    foundValidSpot = true;
+                }
+                attempts++;
+            }
+
+            // Si se encontró un lugar válido, añadir el monstruo a la lista
+            if (foundValidSpot) {
+                monsters.push({
+                    type: randomMonsterType,
+                    x: randomX,
+                    y: randomY,
+                    health: monsterDef.health,
+                    maxHealth: monsterDef.health,
+                    damage: monsterDef.damage,
+                    speed: monsterDef.speed,
+                    emoji: monsterDef.emoji,
+                    color: monsterDef.color,
+                    attackCooldown: monsterDef.attackCooldown,
+                    lastAttackTime: 0,
+                    hitFlashTime: monsterDef.hitFlashTime || 0, // Time monster flashes after being hit
+                    lastHitTime: 0, // Last time monster was hit for flash effect
+                    drop: monsterDef.drop // El drop ahora es un objeto que contiene tipo y cantidad
+                });
+                // console.log(`Monstruo ${randomMonsterType} generado en (${randomX}, ${randomY}). Total: ${monsters.length}`); // Comentar para evitar spam
+            } else {
+                // console.log(`No se pudo encontrar un lugar válido para generar un monstruo después de ${MAX_ATTEMPTS} intentos.`); // Comentar para evitar spam
+            }
+        };
+
+        /**
+         * Mueve al jugador por un delta dado en coordenadas x e y,
+         * comprobando los límites del mapa y los obstáculos.
+         * @param {number} dx - El cambio en la coordenada x.
+         * @param {number} dy - El cambio en la coordenada y.
+         */
+        const movePlayer = (dx, dy) => {
+            // No permitir el movimiento si hay una pregunta, diálogo o inventario abierto
+            if (questionActive || dialogueActive || inventoryOpen) return;
+
+            // Si el jugador ya se está moviendo hacia un objetivo, no aceptar nuevas entradas de movimiento
+            if (Math.abs(player.x - player.targetX) > 0.01 || Math.abs(player.y - player.targetY) > 0.01) {
+                return;
+            }
+
+            const newTargetX = Math.round(player.x) + dx; // Calcular la nueva posición X objetivo
+            const newTargetY = Math.round(player.y) + dy; // Calcular la nueva posición Y objetivo
+
+            // Verificar límites del mapa
+            if (newTargetX >= 0 && newTargetX < MAP_WIDTH &&
+                newTargetY >= 0 && newTargetY < MAP_HEIGHT) {
+                const targetTileType = gameMap[newTargetY][newTargetX]; // Obtener el tipo de tile del objetivo
+                // Verificar si el tile objetivo está ocupado por un NPC o monstruo
+                const isNpcTile = (newTargetX === elara.x && newTargetY === elara.y) ||
+                                  (newTargetX === silasVane.x && silasVane.y) ||
+                                  (newTargetX === compostGuru.x && newTargetY === compostGuru.y); // Check for new NPC
+                const isMonsterTile = monsters.some(m => Math.round(m.x) === newTargetX && Math.round(m.y) === newTargetY);
+
+                // Verificar si el tile objetivo no es un obstáculo
+                if (targetTileType !== 1 && // Pared
+                    targetTileType !== 3 && // Mueble
+                    targetTileType !== 9 && // Tronco de árbol
+                    targetTileType !== 10 && // Río/Agua
+                    targetTileType !== 12 && // Lago pequeño
+                    targetTileType !== 13 && // Lago grande
+                    targetTileType !== 16 && // Cama (como obstáculo para el movimiento normal)
+                    !isNpcTile && // No es un tile de NPC
+                    !isMonsterTile) { // No es un tile de monstruo
+                    player.targetX = newTargetX; // Establecer nueva posición X objetivo
+                    player.targetY = newTargetY; // Establecer nueva posición Y objetivo
+
+                    // Actualizar la dirección del jugador para la animación
+                    if (dx < 0) {
+                        player.direction = 'left';
+                    } else if (dx > 0) {
+                        player.direction = 'right';
+                    }
+                }
+            }
+        };
+
+        /**
+         * Interpola suavemente al jugador hacia sus coordenadas objetivo.
+         * @param {number} deltaTime - Tiempo transcurrido desde el último fotograma en milisegundos.
+         */
+        const handlePlayerMovement = (deltaTime) => {
+            if (player.x !== player.targetX || player.y !== player.targetY) {
+                const distanceX = player.targetX - player.x; // Distancia en X
+                const distanceY = player.targetY - player.y; // Distancia en Y
+                const currentDistance = Math.sqrt(distanceX * distanceX + distanceY * distanceY); // Distancia total
+                const moveDistance = player.speed * deltaTime; // Distancia a moverse en este frame
+
+                if (currentDistance <= moveDistance) {
+                    player.x = player.targetX; // Llegó al objetivo
+                    player.y = player.targetY; // Llegó al objetivo
+                } else {
+                    // Mover suavemente hacia el objetivo
+                    player.x += (distanceX / currentDistance) * moveDistance;
+                    player.y += (distanceY / currentDistance) * moveDistance;
+                }
+            }
+        };
+
+        /**
+         * Muestra una superposición de pregunta de opción múltiple.
+         * @param {object} question - El objeto de pregunta a mostrar.
+         */
+        const displayQuestion = (question) => {
+            questionOverlay.style.display = 'flex'; // Mostrar la superposición de preguntas
+            questionTextElement.textContent = question.text; // Establecer el texto de la pregunta
+            optionsContainer.innerHTML = ''; // Limpiar opciones anteriores
+
+            // Crear botones para cada opción de la pregunta
+            question.options.forEach((optionText, index) => {
+                const button = document.createElement('button');
+                button.classList.add('option-button');
+                button.textContent = `${optionText}`;
+                button.dataset.optionIndex = index;
+                button.addEventListener('click', () => {
+                    selectOption(index); // Manejar la selección de la opción
+                });
+                optionsContainer.appendChild(button);
+            });
+            selectedOptionIndex = -1; // Restablecer la opción seleccionada
+        };
+
+        /**
+         * Maneja la selección de opciones para la superposición de preguntas.
+         * @param {number} index - El índice de la opción seleccionada.
+         */
+        const selectOption = (index) => {
+            if (questionActive) {
+                selectedOptionIndex = index; // Establecer la opción seleccionada
+                // Actualizar clases CSS para resaltar la opción seleccionada
+                Array.from(optionsContainer.children).forEach((btn, i) => {
+                    if (i === index) {
+                        btn.classList.add('selected');
+                    } else {
+                        btn.classList.remove('selected');
+                    }
+                });
+            }
+        };
+
+        /**
+         * Resuelve la pregunta actual basándose en la selección del jugador o el tiempo de espera.
+         */
+        const resolveQuestion = () => {
+            questionOverlay.style.display = 'none'; // Ocultar la superposición de preguntas
+            questionActive = false; // Desactivar la bandera de pregunta activa
+            questionTimerElement.textContent = ''; // Limpiar el temporizador
+
+            const materialType = currentMaterialToCollect.type; // Tipo de material de la pregunta
+            const questionSet = materials[materialType].questions; // Conjunto de preguntas para ese material
+            const currentQ = questionSet[currentMaterialToCollect.questionIndex]; // Pregunta actual
+
+            let correct = false;
+            if (selectedOptionIndex !== -1) {
+                correct = (selectedOptionIndex === currentQ.correctOptionIndex); // Comprobar si la respuesta es correcta
+            } else {
+                correct = false; // Si no se seleccionó ninguna opción, es incorrecta
+            }
+
+            if (correct) {
+                addItemToInventory(currentMaterialToCollect.type, 1); // Añadir el material al inventario
+                currentMaterialToCollect.collected = true; // Marcar el material como recolectado
+                showMessage(`¡Respuesta correcta! Recogiste ${materials[currentMaterialToCollect.type].displayName}.`, 1500);
+            } else {
+                showMessage('¡Respuesta incorrecta o se acabó el tiempo! Inténtalo de nuevo.', 1500);
+                // Pasar a la siguiente pregunta si la respuesta fue incorrecta
+                currentMaterialToCollect.questionIndex = (currentMaterialToCollect.questionIndex + 1) % questionSet.length;
+            }
+
+            currentMaterialToCollect = null; // Limpiar el material a recolectar
+            currentQuestionData = null; // Limpiar los datos de la pregunta
+            selectedOptionIndex = -1; // Restablecer la opción seleccionada
+        };
+
+        // --- Definiciones de NPCs ---
+        const elara = {
+            x: houseOffsetX + 20,
+            y: houseOffsetY + 25,
+            name: "Elara",
+            emoji: "👵",
+            color: "#8B4513",
+            currentDialogueIndex: 0,
+            dialoguePhase: 'INTRO',
+            dialogues: {
+                INTRO: [
+                    "Elara: '¿Otro vagabundo perdido en la penumbra? Pocos se aventuran tan lejos de las cúpulas. ¿Qué te trae a este rincón olvidado?'",
+                    "Elara: 'La Plaga Gris... lo ha consumido casi todo. Pero aún hay esperanza, ¿sabes? Aquí, en nuestro pequeño rincón, intentamos lo imposible: hacer que la vida florezca de nuevo. Pero la tierra... está muerta. Necesitamos nutrirla, revivirla.'"
+                ],
+                MISSION_PROMPT: [
+                    "Elara: 'He estado experimentando con un método antiguo, una técnica de la 'Vieja Tierra' que llamaban 'compostaje'. Es la clave para restaurar la vitalidad de esta tierra moribunda. Necesito tu ayuda, joven. La Corporación Zenith no se detendrá ante nada para detenernos, y mi tiempo es limitado.'",
+                    "Elara: '¿Aceptarás la misión de ayudarme a crear compost nutritivo para nuestro jardín y plantar las últimas semillas de Fruta Solar? El futuro de la vida depende de ello.'"
+                ],
+                MISSION_ACCEPTED: [
+                    "Elara: '¡Gracias, joven! Tu coraje es un faro en estos tiempos oscuros. Ahora, manos a la obra. Necesitamos compost para revivir esta tierra. ¡Y no olvides plantar las semillas en el jardín cuando el compost esté listo!'",
+                    "Elara: 'Sigue trabajando en el compost, joven. Cada ciclo nos acerca a restaurar la vida. ¡Y no olvides plantar las semillas en el jardín cuando el compost esté listo!'"
+                ],
+                MISSION_REJECTED: [
+                    "Elara: 'Lo entiendo. Es un camino difícil y peligroso. Pero la esperanza nunca muere, joven. Si cambias de opinión, aquí estaré.'",
+                    "Elara: 'La misión sigue en pie si decides unirte a la Resistencia Verde.'"
+                ]
+            },
+            missionAccepted: false,
+        };
+
+        const silasVane = {
+            x: 100,
+            y: 50,
+            name: "Silas Vane",
+            emoji: "🦹‍♂️",
+            color: "#333333",
+            currentDialogueIndex: 0,
+            dialogues: [
+                "Silas Vane: 'Así que eres el 'jardinero' del que he oído hablar. Interesante. Mis sensores han detectado un aumento inusual de biomasa en esta área. Y me informan que eres el responsable.'",
+                "Silas Vane: 'Tengo una propuesta para ti, 'jardinero'. Esas 'plantas' tuyas... son valiosas. Extremadamente valiosas. La Corporación Zenith tiene el monopolio de los recursos restantes. No permitiremos que nadie perturbe ese equilibrio. No hay lugar para la vida salvaje en mi nuevo mundo.'",
+                "Silas Vane: 'Dame esas plantas. Todas ellas. No es una petición. Es una oferta que no puedes rechazar. A cambio, quizás te permita un lugar insignificante en mi imperio. O serás reducido a polvo, como todo lo demás que se interpondrá en mi camino.'",
+                "Silas Vane: 'No te atrevas a desafiar a la Corporación Zenith, 'jardinero'. Mis drones están vigilando cada uno de tus movimientos.'"
+            ],
+        };
+
+        // NEW NPC: Maestro Compostador
+        const compostGuru = {
+            x: houseOffsetX + 18, // Inside the house
+            y: houseOffsetY + 2, // Near the compost bin
+            name: "Maestro Compostador",
+            emoji: "👨‍🌾",
+            color: "#6B8E23",
+            currentDialogueIndex: 0,
+            dialogues: [
+                "Maestro Compostador: '¡Saludos, joven! Veo que tienes interés en la pila de compost. Es el corazón de nuestra supervivencia aquí.'",
+                "Maestro Compostador: 'Para hacer compost, necesitas tres cosas principales: materiales 'marrones' (como tierra o ramas secas), materiales 'verdes' (como cáscaras de fruta, restos de comida), y agua.'",
+                "Maestro Compostador: 'Empieza añadiendo tierra, luego un material orgánico. Después, riega la pila con tu regadera. Una vez que esté húmeda, revuélvela con tu espada. ¡Y el ciclo se repite!'",
+                "Maestro Compostador: 'Cada ciclo de compostaje te acerca a tener tierra fértil. ¡No te rindas!'"
+            ],
+        };
+
+        // Añadir una pequeña parcela de tierra para el jardín de Elara cerca de ella
+        const elaraGardenX = elara.x + 2;
+        const elaraGardenY = elara.y;
+        const gardenWidth = 5;
+        const gardenHeight = 3;
+        for (let y = elaraGardenY; y < elaraGardenY + gardenHeight; y++) {
+            for (let x = elaraGardenX; x < elaraGardenX + gardenWidth; x++) {
+                if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                    gameMap[y][x] = 17; // Nuevo tipo de tile para 'huerta' (tierra de jardín)
+                }
+            }
+        }
+
+        /**
+         * Helper function to advance NPC dialogue or hide dialogue box.
+         * @param {object} npc - The NPC object.
+         * @param {boolean} [showMissionOptions=false] - Whether to show mission options.
+         */
+        const advanceDialogue = (npc, showMissionOptions = false) => {
+            const currentDialogueArray = npc.dialogues[npc.dialoguePhase] || npc.dialogues; // Handle both types
+            npc.currentDialogueIndex++;
+            if (npc.currentDialogueIndex < currentDialogueArray.length) {
+                displayDialogue(npc, currentDialogueArray[npc.currentDialogueIndex], showMissionOptions);
+            } else {
+                hideDialogue();
+                npc.currentDialogueIndex = currentDialogueArray.length - 1; // Stay at last dialogue
+                if (npc === elara && elara.dialoguePhase === 'INTRO') { // Special transition for Elara's mission
+                    elara.dialoguePhase = 'MISSION_PROMPT';
+                    elara.currentDialogueIndex = 0;
+                    displayDialogue(elara, elara.dialogues.MISSION_PROMPT[elara.currentDialogueIndex], true);
+                }
+            }
+        };
+
+        /**
+         * Muestra un diálogo en la caja de diálogo.
+         * @param {object} npc - El objeto NPC que está hablando actualmente.
+         * @param {string} text - El texto a mostrar.
+         * @param {boolean} showOptions - Si se deben mostrar las opciones de misión.
+         */
+        const displayDialogue = (npc, text, showOptions = false) => {
+            dialogueBox.style.display = 'flex'; // Mostrar la caja de diálogo
+            dialogueTextElement.textContent = `${npc.name}: '${text}'`; // Establecer el texto del diálogo
+            dialogueOptionsElement.innerHTML = ''; // Limpiar opciones anteriores
+            dialogueActive = true; // Activar la bandera de diálogo
+
+            if (showOptions && npc === elara && elara.dialoguePhase === 'MISSION_PROMPT') {
+                // Crear botón para aceptar la misión
+                const acceptButton = document.createElement('button');
+                acceptButton.classList.add('dialogue-option-button');
+                acceptButton.textContent = 'Aceptar Misión';
+                acceptButton.addEventListener('click', () => { acceptMission(); hideDialogue(); }); 
+                dialogueOptionsElement.appendChild(acceptButton);
+
+                // Crear botón para rechazar la misión
+                const rejectButton = document.createElement('button');
+                rejectButton.classList.add('dialogue-option-button');
+                rejectButton.textContent = 'Rechazar Misión';
+                rejectButton.addEventListener('click', () => { rejectMission(); hideDialogue(); }); 
+                dialogueOptionsElement.appendChild(rejectButton);
+            }
+        };
+
+        /**
+         * Oculta la caja de diálogo.
+         */
+        const hideDialogue = () => {
+            dialogueBox.style.display = 'none'; // Ocultar la caja de diálogo
+            dialogueActive = false; // Desactivar la bandera de diálogo
+            dialogueOptionsElement.innerHTML = ''; // Limpiar opciones
+        };
+
+        /**
+         * Maneja la aceptación de la misión de Elara.
+         */
+        const acceptMission = () => {
+            elara.missionAccepted = true; // Marcar la misión como aceptada
+            elara.dialoguePhase = 'MISSION_ACCEPTED'; // Cambiar la fase del diálogo
+            elara.currentDialogueIndex = -1; // Reset index so it starts from 0 on next interaction
+            showMessage("¡Misión 'Corazón de la Tierra' aceptada!", 3000); // Mostrar mensaje de confirmación
+        };
+
+        /**
+         * Maneja el rechazo de la misión de Elara.
+         */
+        const rejectMission = () => {
+            elara.missionAccepted = false; // Marcar la misión como rechazada
+            elara.dialoguePhase = 'MISSION_REJECTED'; // Cambiar la fase del diálogo
+            elara.currentDialogueIndex = -1; // Reset index
+            showMessage("Misión rechazada. Elara parece decepcionada.", 3000); // Mostrar mensaje de confirmación
+        };
+
+        /**
+         * Calcula la distancia entre dos puntos.
+         */
+        const getDistance = (x1, y1, x2, y2) => {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        };
+
+        /**
+         * Displays a floating damage number above a given position.
+         * @param {number} damage - The amount of damage.
+         * @param {number} x - World X coordinate of the hit.
+         * @param {number} y - World Y coordinate of the hit.
+         */
+        const showDamageNumber = (damage, x, y) => {
+            const popup = {
+                value: damage,
+                x: x * TILE_SIZE,
+                y: y * TILE_SIZE,
+                startTime: performance.now(),
+                element: document.createElement('div')
+            };
+            popup.element.classList.add('damage-number');
+            popup.element.textContent = `-${damage}`;
+            gameContainer.appendChild(popup.element); // Append to game container
+            damagePopups.push(popup);
+        };
+
+        /**
+         * Maneja la acción del jugador (usar objeto, interactuar con compost, atacar).
+         * @param {boolean} isClick - Indica si la acción fue activada por un clic del ratón.
+         */
+        const handleAction = (isClick = false) => {
+            // No permitir la acción si hay una pregunta, diálogo o inventario abierto
+            if (questionActive || inventoryOpen) return;
+
+            const playerTileX = Math.round(player.x); // Posición X del tile del jugador
+            const playerTileY = Math.round(player.y); // Posición Y del tile del jugador
+            const activeItem = player.inventory[player.activeSlotIndex]; // Obtener el objeto activo en el inventario
+            const activeItemDef = activeItem ? materials[activeItem.type] : null; // Obtener la definición del objeto activo
+            const currentTime = performance.now(); // Obtener el tiempo actual una vez para eficiencia
+
+            // --- Prioridad 0: Manejar avance de diálogo si está activo ---
+            if (dialogueActive) {
+                // Determine which NPC is currently talking
+                if (dialogueTextElement.textContent.startsWith(`${elara.name}:`)) {
+                    advanceDialogue(elara);
+                } else if (dialogueTextElement.textContent.startsWith(`${silasVane.name}:`)) {
+                    advanceDialogue(silasVane);
+                } else if (dialogueTextElement.textContent.startsWith(`${compostGuru.name}:`)) { // New NPC dialogue advancement
+                    advanceDialogue(compostGuru);
+                }
+                return; // Dialogue handled, exit function
+            }
+
+
+            // --- Prioridad 1: Si es un click y el objeto activo es un arma, intentar atacar PRIMERO y salir. ---
+            if (isClick && activeItemDef && activeItemDef.type === 'weapon') {
+                if (currentTime - player.lastAttackTime > player.attackCooldown) {
+                    const targetTileX = crosshair.x;
+                    const targetTileY = crosshair.y;
+
+                    // Buscar un monstruo en la posición del crosshair y dentro del rango de ataque del jugador
+                    let monsterHit = monsters.find(m =>
+                        Math.round(m.x) === targetTileX &&
+                        Math.round(m.y) === targetTileY &&
+                        getDistance(playerTileX, playerTileY, targetTileX, targetTileY) <= 1.5 // Rango de ataque
+                    );
+
+                    if (monsterHit) {
+                        // Si se golpea un monstruo, reducir su salud
+                        monsterHit.health -= activeItemDef.damage;
+                        monsterHit.lastHitTime = currentTime; // For hit flash effect
+                        showDamageNumber(activeItemDef.damage, monsterHit.x, monsterHit.y - 0.5); // Show damage
+                        player.lastAttackTime = currentTime; // Reiniciar el tiempo del último ataque
+                        showMessage(`¡Atacaste al ${monsterHit.type}! Salud restante: ${Math.max(0, monsterHit.health)}`, 1000);
+                        return; // Ataque exitoso, salir.
+                    } else {
+                        showMessage('¡El ataque falló! No hay monstruos en el objetivo.', 500);
+                        return; // Ataque fallido, pero fue un intento de ataque, salir.
+                    }
+                } else {
+                    showMessage('¡Esperando para atacar!', 500);
+                    return; // En cooldown, fue un intento de ataque, salir.
+                }
+            }
+            // If it's a click and NOT a weapon, or if it's a click and the weapon attack was already handled (failed or successful),
+            // the flow from here on only executes if it was NOT a click or if the click was already handled as an attack.
+            // Therefore, if `isClick` is true and we reach here, it means it wasn't a weapon. We should not drop the item.
+            if (isClick) {
+                return; // If it's a click and not a weapon, the click does nothing.
+            }
+
+            // --- Prioridad 2: Interactuar con NPCs ---
+            const npcs = [elara, silasVane, compostGuru];
+            let interactedWithNpc = false;
+            for (const npc of npcs) {
+                if (Math.abs(playerTileX - npc.x) <= 1 && Math.abs(playerTileY - npc.y) <= 1) {
+                    if (!dialogueActive) { // Start new dialogue if not active
+                        npc.currentDialogueIndex = -1; // Reset index so advanceDialogue starts at 0
+                        advanceDialogue(npc);
+                    }
+                    interactedWithNpc = true;
+                    break;
+                }
+            }
+            if (interactedWithNpc) {
+                return;
+            }
+            
+            // --- Prioridad 3: Interactuar con la cama ---
+            const nearBed = gameMap[playerTileY] && gameMap[playerTileY][playerTileX] === 16;
+            if (nearBed) {
+                if (isNight) {
+                    gameDay++;
+                    dayCounterSpan.textContent = `${gameDay}`;
+                    gameStartTime = performance.now(); // Reset time for new day/night cycle
+                    isNight = false; // Always start day phase
+                    monsters = []; // Limpiar monstruos al amanecer
+                    respawnMaterials(); // Regenerar materiales
+                    updateFarmPlotGrowth(); // Actualizar el crecimiento de las plantas al inicio del día
+                    showMessage(`¡Dormiste bien! El día ${gameDay} ha comenzado.`, 2000);
+                    if (gameDay > TOTAL_GAME_DAYS) { // Check for game end after TOTAL_GAME_DAYS
+                        gameRunning = false;
+                        if (compostPile.count === compostPile.maxCount) {
+                            showMessage(`¡Juego Terminado! ¡Creaste compost perfecto en ${TOTAL_GAME_DAYS} días!`, 5000);
+                            if (elara.missionAccepted) {
+                                showMessage("Elara: '¡Lo lograste! La tierra vuelve a la vida. ¡Gracias, campeón!'", 5000);
+                            }
+                        } else {
+                            showMessage(`¡Juego Terminado! No lograste completar el compost. Compost: ${compostPile.count}/${compostPile.maxCount}`, 5000);
+                            if (elara.missionAccepted && compostPile.count < compostPile.maxCount) {
+                                showMessage("Elara: 'No logramos restaurar la tierra a tiempo. Pero la esperanza perdura. Quizás otro día...'", 5000);
+                            }
+                        }
+                    }
+                } else {
+                    showMessage('Solo puedes dormir de noche.', 1500);
+                }
+                return;
+            }
+
+            // --- Prioridad 4: Interactuar con parcelas de huerta (plantar, regar, cosechar) ---
+            const adjacentTiles = [
+                { x: playerTileX, y: playerTileY - 1 }, // Up
+                { x: playerTileX, y: playerTileY + 1 }, // Down
+                { x: playerTileX - 1, y: playerTileY }, // Left
+                { x: playerTileX + 1, y: playerTileY }, // Right
+            ];
+
+            let interactedWithFarmPlot = false;
+            for (const adj of adjacentTiles) {
+                if (adj.x >= 0 && adj.x < MAP_WIDTH && adj.y >= 0 && adj.y < MAP_HEIGHT && gameMap[adj.y][adj.x] === 17) {
+                    const plot = plantedFarmPlots.find(p => p.x === adj.x && p.y === adj.y);
+
+                    if (!plot) { // Plot is empty, try to plant
+                        if (activeItemDef && activeItemDef.type === 'seed' && activeItem && activeItem.count > 0) {
+                            // Plant a seed
+                            plantedFarmPlots.push({
+                                x: adj.x,
+                                y: adj.y,
+                                plantedSeed: activeItem.type,
+                                growthStage: 0,
+                                watered: true, // Considered watered for the day it's planted
+                                lastWateredDay: gameDay, 
+                                lastGrowthDay: gameDay 
+                            });
+                            removeItemFromInventory(player.activeSlotIndex, 1);
+                            showMessage(`¡Plantaste ${activeItemDef.displayName} en (${adj.x},${adj.y})!`, 1500);
+                            interactedWithFarmPlot = true;
+                            break; // Action handled, exit loop
+                        }
+                    } else { // Plot has a plant, try to water or harvest
+                        const plantDef = materials[plot.plantedSeed];
+                        if (activeItemDef && activeItemDef.displayName === 'Regadera') {
+                            if (!plot.watered && plot.lastWateredDay < gameDay) { // Check if not watered today and not watered for this day
+                                // Water the plant
+                                plot.watered = true;
+                                plot.lastWateredDay = gameDay;
+                                showMessage(`¡Regaste ${plantDef.displayName} en (${adj.x},${adj.y})!`, 1500);
+                                interactedWithFarmPlot = true;
+                                break;
+                            } else {
+                                showMessage('Esta planta ya ha sido regada hoy o no necesita agua.', 1500);
+                                interactedWithFarmPlot = true;
+                                break;
+                            }
+                        } else if (activeItemDef && activeItemDef.displayName === 'Pala' && plot.growthStage >= plantDef.growthTime) {
+                            // Harvest the plant
+                            addItemToInventory(plantDef.growsTo, 1); // Add harvested plant to inventory
+                            plantedFarmPlots.splice(plantedFarmPlots.indexOf(plot), 1); // Remove from planted list
+                            showMessage(`¡Cosechaste ${plantDef.displayName} de (${adj.x},${adj.y})!`, 1500);
+                            interactedWithFarmPlot = true;
+                            break;
+                        } else if (activeItemDef && activeItemDef.displayName === 'Pala' && plot.growthStage < plantDef.growthTime) {
+                            showMessage('La planta aún no está lista para cosechar.', 1500);
+                            interactedWithFarmPlot = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (interactedWithFarmPlot) {
+                return; // Farm plot interaction handled, stop other actions
+            }
+
+            // --- Prioridad 5: Recolectar materiales o recursos naturales (tierra/agua) ---
+            const materialNear = currentMaterials.find(mat =>
+                !mat.collected &&
+                Math.abs(playerTileX - mat.x) <= 1 &&
+                Math.abs(playerTileY - mat.y) <= 1
+            );
+            const onSoilBulk = gameMap[playerTileY] && gameMap[playerTileY][playerTileX] === 5;
+            const onWaterSource = gameMap[playerTileY] && gameMap[playerTileY][playerTileX] === 4;
+
+            if (materialNear) {
+                if (materials[materialNear.type].challenge) {
+                    questionActive = true; // Activate challenge question
+                    currentMaterialToCollect = materialNear;
+                    currentQuestionData = materials[materialNear.type].questions[materialNear.questionIndex];
+                    questionStartTime = performance.now();
+                    displayQuestion(currentQuestionData); // Display question
+                } else {
+                    // For materials without challenge (like soil and water), add directly to inventory
+                    addItemToInventory(materialNear.type, 1);
+                    materialNear.collected = true; // Mark as collected
+                    showMessage(`¡Recogiste ${materials[materialNear.type].displayName}!`, 1500);
+                }
+                return;
+            } else if (onSoilBulk && (!activeItem || (activeItem.type === 'soil' && activeItem.count < materials.soil.maxStack))) {
+                addItemToInventory('soil', 1); // Collect soil
+                showMessage(`¡Recogiste ${materials.soil.displayName}!`, 1500);
+                return;
+            } else if (onWaterSource && (!activeItem || (activeItem.type === 'water' && activeItem.count < materials.water.maxStack))) {
+                addItemToInventory('water', 1); // Collect water
+                showMessage(`¡Recogiste ${materials.water.displayName}!`, 1500);
+                return;
+            }
+
+            // --- Prioridad 6: Interactuar con la pila de compost ---
+            const nearCompost = Math.abs(playerTileX - compostPile.x) <= 1 &&
+                                Math.abs(playerTileY - compostPile.y) <= 1;
+            if (nearCompost && activeItem) {
+                if (compostState === COMPOST_STATES.NEEDS_SOIL && activeItem.type === 'soil') {
+                    compostState = COMPOST_STATES.NEEDS_MATERIAL;
+                    removeItemFromInventory(player.activeSlotIndex, 1); // Remove soil from inventory
+                    showMessage('¡Añadiste tierra! Ahora añade un material orgánico.', 2000);
+                } else if (compostState === COMPOST_STATES.NEEDS_MATERIAL && materials[activeItem.type].type === 'green') {
+                    compostState = COMPOST_STATES.NEEDS_WATER;
+                    removeItemFromInventory(player.activeSlotIndex, 1); // Remove organic material
+                    showMessage('¡Añadiste material orgánico! Ahora hidrata el compost.', 2000);
+                } else if (compostState === COMPOST_STATES.NEEDS_WATER && activeItem.type === 'water') {
+                    compostState = COMPOST_STATES.NEEDS_STIR;
+                    removeItemFromInventory(player.activeSlotIndex, 1); // Remove water
+                    showMessage('¡Hidrataste el compost! Ahora revuélvelo.', 2000);
+                } else if (compostState === COMPOST_STATES.NEEDS_STIR && activeItemDef && activeItemDef.type === 'weapon') { // Use weapon to stir
+                    if (compostPile.count < compostPile.maxCount) {
+                        compostPile.count++; // Increment compost amount
+                        compostState = COMPOST_STATES.NEEDS_SOIL; // Return to start of cycle
+                        showMessage('¡Revolviste el compost! Ciclo completado. ¡Añade más!', 2000);
+                        if (compostPile.count === compostPile.maxCount) {
+                            compostState = COMPOST_STATES.FULL; // Compost complete
+                            showMessage('¡Compost listo! ¡Felicidades, hiciste compost perfecto!', 3000);
+                        }
+                    } else {
+                        showMessage('¡El compost está lleno!', 1500);
+                    }
+                } else if (compostState === COMPOST_STATES.FULL) {
+                    showMessage('¡El compost ya está listo!', 1500);
+                } else {
+                    // Informative messages if trying to add the wrong material
+                    if (activeItem && activeItem.type === 'soil' && compostState !== COMPOST_STATES.NEEDS_SOIL) {
+                        showMessage('No necesitas tierra ahora mismo para el compost.', 1500);
+                    } else if (activeItem && activeItem.type === 'water' && compostState !== COMPOST_STATES.NEEDS_WATER) {
+                        showMessage('No necesitas agua ahora mismo para el compost.', 1500);
+                    } else if (activeItemDef && materials[activeItem.type].type === 'green' && compostState !== COMPOST_STATES.NEEDS_MATERIAL) {
+                        showMessage('No necesitas ese material orgánico ahora mismo para el compost.', 1500);
+                    } else if (activeItemDef && activeItemDef.type === 'weapon' && compostState !== COMPOST_STATES.NEEDS_STIR) {
+                        showMessage('Solo necesitas la espada para remover el compost cuando sea necesario.', 1500);
+                    } else {
+                        showMessage('No puedes hacer eso con el compost ahora mismo.', 1500);
+                    }
+                }
+                return;
+            }
+
+            // --- Prioridad 7: Soltar el objeto activo (SÓLO si la acción fue con la tecla 'F' o botón de control) ---
+            // Esta sección solo se ejecuta si `isClick` es falso,
+            // ya que si `isClick` es verdadero, la función ya habría retornado en la prioridad 0.
+            if (activeItem) {
+                const currentTileType = gameMap[playerTileY] && gameMap[playerTileY][playerTileX];
+                // Verificar si el tile actual es transitable y no es un obstáculo/fuente/tile especial
+                if (currentTileType !== 1 && currentTileType !== 3 && currentTileType !== 4 && currentTileType !== 5 && currentTileType !== 9 && currentTileType !== 10 && currentTileType !== 12 && currentTileType !== 13 && currentTileType !== 16 && currentTileType !== 17 && currentTileType !== 18 && currentTileType !== 19) {
+                    currentMaterials.push({
+                        type: activeItem.type,
+                        x: playerTileX,
+                        y: playerTileY,
+                        collected: false,
+                        questionIndex: 0,
+                        spawnTime: performance.now()
+                    });
+                    showMessage(`¡Soltaste ${activeItemDef.displayName}!`, 1500);
+                    removeItemFromInventory(player.activeSlotIndex, 1); // Remove one item from inventory
+                } else {
+                    showMessage('No puedes soltar el material aquí.', 1500);
+                }
+                return;
+            }
+
+            showMessage('Nada que hacer aquí.', 1500); // Default message if no action is performed
+        };
+
+        /**
+         * Alterna la visibilidad de la superposición del inventario.
+         */
+        const toggleInventory = () => {
+            inventoryOpen = !inventoryOpen; // Toggle open/closed state
+            if (inventoryOpen) {
+                inventoryOverlay.style.display = 'flex'; // Show inventory overlay
+                // When opening full inventory, ensure hotbar slots inside are also updated
+                updateInventoryUI(true);
+            } else {
+                inventoryOverlay.style.display = 'none'; // Hide inventory overlay
+                if (draggingItem) { // If an item was being dragged, drop it when closing inventory
+                    const playerTileX = Math.round(player.x);
+                    const playerTileY = Math.round(player.y);
+                    currentMaterials.push({
+                        type: draggingItem.item.type,
+                        x: playerTileX,
+                        y: playerTileY,
+                        collected: false,
+                        questionIndex: 0,
+                        spawnTime: performance.now()
+                    });
+                    showMessage(`¡Soltaste ${materials[draggingItem.item.type].displayName}!`, 1500);
+                    draggingItem = null; // Clear dragged item
+                    draggedItemVisual.style.display = 'none'; // Hide dragged item visual element
+                }
+            }
+        };
+
+        /**
+         * Actualiza la representación visual del inventario (solo para la superposición HTML).
+         * @param {boolean} fullInventoryMode - Verdadero si se está actualizando la superposición de inventario completo.
+         */
+        const updateInventoryUI = (fullInventoryMode = false) => {
+            // Update HTML inventory overlay if open
+            if (fullInventoryMode) {
+                fullInventoryHotbarSlotsContainer.innerHTML = ''; // Clear hotbar slots
+                storageSlotsContainer.innerHTML = ''; // Clear storage slots
+
+                // Hotbar slots (0 to 3) in the full inventory
+                for (let i = 0; i < 4; i++) {
+                    const slotDiv = document.createElement('div');
+                    slotDiv.classList.add('inventory-slot');
+                    if (player.activeSlotIndex === i) {
+                        slotDiv.classList.add('active'); // Highlight active slot
+                    }
+                    slotDiv.dataset.slotIndex = i;
+                    slotDiv.addEventListener('mousedown', handleInventorySlotStartDrag); // Add listener for dragging
+
+                    const item = player.inventory[i];
+                    if (item) {
+                        const itemDef = materials[item.type];
+                        if (itemDef) {
+                            slotDiv.innerHTML = `<span class="item-emoji">${itemDef.emoji}</span><span class="item-count">${item.count}</span>`;
+                        }
+                    }
+                    fullInventoryHotbarSlotsContainer.appendChild(slotDiv);
+                }
+
+                // Storage slots (4 to 9) in the full inventory
+                for (let i = 4; i < 10; i++) {
+                    const slotDiv = document.createElement('div');
+                    slotDiv.classList.add('inventory-slot');
+                    slotDiv.dataset.slotIndex = i;
+                    slotDiv.addEventListener('mousedown', handleInventorySlotStartDrag);
+
+                    const item = player.inventory[i];
+                    if (item) {
+                        const itemDef = materials[item.type];
+                        if (itemDef) {
+                            slotDiv.innerHTML = `<span class="item-emoji">${itemDef.emoji}</span><span class="item-count">${item.count}</span>`;
+                        }
+                    }
+                    storageSlotsContainer.appendChild(slotDiv);
+                }
+            }
+        };
+
+        /**
+         * Handles the mousedown event on an inventory slot to start a drag operation.
+         * This function now only applies to the HTML inventory overlay, not the canvas hotbar.
+         * @param {Event} event - The mousedown event.
+         */
+        const handleInventorySlotStartDrag = (event) => {
+            event.preventDefault(); // Prevent default browser drag behavior
+            const clickedSlotIndex = parseInt(event.currentTarget.dataset.slotIndex); // Get the index of the clicked slot
+
+            if (player.inventory[clickedSlotIndex]) {
+                // Start dragging
+                draggingItem = {
+                    item: { ...player.inventory[clickedSlotIndex] }, // Clone the item to avoid modifying the original directly during drag
+                    originalSlotIndex: clickedSlotIndex
+                };
+                player.inventory[clickedSlotIndex] = null; // Visually remove from original slot
+                
+                const itemDef = materials[draggingItem.item.type];
+                draggedItemVisual.textContent = itemDef.emoji; // Set the emoji of the dragged item
+                draggedItemVisual.style.display = 'block'; // Show the dragged item visual element
+                updateInventoryUI(inventoryOpen); // Update the UI to show the original slot empty
+            }
+        };
+
+        /**
+         * Handles dropping an item into an inventory slot. This is called by the mouseup listener.
+         * @param {number} targetSlotIndex - The index of the slot where the item is dropped.
+         */
+        const handleInventorySlotDrop = (targetSlotIndex) => {
+            if (!draggingItem) return; // Should not happen if called correctly
+
+            const targetSlotItem = player.inventory[targetSlotIndex]; // Get the item in the target slot
+            const itemDefToMove = materials[draggingItem.item.type];
+
+
+            if (targetSlotIndex === draggingItem.originalSlotIndex) {
+                // Dropped into the same slot
+                player.inventory[targetSlotIndex] = draggingItem.item;
+            } else if (targetSlotItem && targetSlotItem.type === draggingItem.item.type && itemDefToMove.stackable && targetSlotItem.count < itemDefToMove.maxStack) {
+                // Try to stack
+                const spaceLeft = itemDefToMove.maxStack - targetSlotItem.count;
+                const amountToMove = Math.min(draggingItem.item.count, spaceLeft);
+                targetSlotItem.count += amountToMove;
+                draggingItem.item.count -= amountToMove; // Update count of dragged item
+
+                if (draggingItem.item.count > 0) {
+                    // If still some left in dragged item, put it back in the original slot
+                    player.inventory[draggingItem.originalSlotIndex] = draggingItem.item;
+                } else {
+                    // All moved, original slot is empty (already null from startDrag)
+                }
+            } else {
+                // Swap items or move to empty slot
+                player.inventory[draggingItem.originalSlotIndex] = targetSlotItem; // Put target item (or null) in original slot
+                player.inventory[targetSlotIndex] = draggingItem.item; // Put dragged item in target slot
+            }
+
+            // Always clear drag state after mouseup
+            draggingItem = null;
+            draggedItemVisual.style.display = 'none';
+            updateInventoryUI(inventoryOpen); // Ensure HTML inventory updates after any drop
+        };
+
+
+        // Input handling
+        const keys = {}; // Stores the state of pressed keys
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true; // Mark key as pressed
+            if (e.key.toLowerCase() === 'f') {
+                if (!e.repeat) { // Prevent repeating action when key is held down
+                    handleAction(false); // 'F' key action is not a mouse click
+                }
+            }
+            if (e.key.toLowerCase() === 'e') {
+                if (!e.repeat) {
+                    toggleInventory(); // Toggle inventory
+                }
+            }
+            // Hotbar selection with number keys
+            if (e.key >= '1' && e.key <= '4') { // Only for 4 hotbar slots (0-3)
+                player.activeSlotIndex = parseInt(e.key) - 1; // Set active slot
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false; // Mark key as released
+        });
+
+        // Mouse click for attack and hotbar selection
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && !questionActive && !dialogueActive && !inventoryOpen) { // Left click and no question/dialogue/inventory open
+                const rect = canvas.getBoundingClientRect(); // Get canvas size and position
+                const mouseX = e.clientX - rect.left; // Mouse X position relative to canvas
+                const mouseY = e.clientY - rect.top; // Mouse Y position relative to canvas
+
+                // Check if hotbar was clicked to select slot
+                const hotbarStartX = HOTBAR_START_X;
+                const hotbarEndX = HOTBAR_START_X + HOTBAR_WIDTH;
+                const hotbarStartY = HOTBAR_START_Y;
+                const hotbarEndY = HOTBAR_START_Y + HOTBAR_HEIGHT;
+
+                if (mouseX >= hotbarStartX && mouseX <= hotbarEndX &&
+                    mouseY >= hotbarStartY && mouseY <= hotbarEndY) {
+                    const relativeX = mouseX - HOTBAR_START_X - HOTBAR_PADDING;
+                    const clickedSlot = Math.floor(relativeX / (HOTBAR_SLOT_SIZE + HOTBAR_SLOT_SPACING));
+                    if (clickedSlot >= 0 && clickedSlot < 4) {
+                        player.activeSlotIndex = clickedSlot; // Set active slot
+                    }
+                    return; // Hotbar click handled
+                }
+
+                // If not hotbar, perform main action (attack with crosshair if sword active)
+                handleAction(true); // Mouse click action is a mouse click
+            }
+        });
+
+        // Update mouse crosshair position and dragged item visual
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseCanvasX = e.clientX - rect.left;
+            const mouseCanvasY = e.clientY - rect.top;
+
+            // Update crosshair position in world coordinates
+            crosshair.x = Math.floor((mouseCanvasX + cameraX) / TILE_SIZE);
+            crosshair.y = Math.floor((mouseCanvasY + cameraY) / TILE_SIZE);
+
+            // Determine if crosshair should be visible: only if an weapon is active and no overlays
+            const activeItem = player.inventory[player.activeSlotIndex];
+            crosshair.visible = (activeItem && materials[activeItem.type].type === 'weapon' && !questionActive && !dialogueActive && !inventoryOpen); // Only visible with weapon
+
+            if (draggingItem) {
+                draggedItemVisual.style.left = `${e.clientX}px`; // X position of visual element
+                draggedItemVisual.style.top = `${e.clientY}px`; // Y position of visual element
+            }
+        });
+
+        // Handle dragged item drop (centralized logic)
+        document.addEventListener('mouseup', (e) => {
+            if (draggingItem) {
+                const targetSlotElement = e.target.closest('.inventory-slot'); // Find target slot
+                if (targetSlotElement && inventoryOpen) { // Only allow dropping into slots if inventory is open
+                    // Dropped into an inventory slot
+                    const targetSlotIndex = parseInt(targetSlotElement.dataset.slotIndex);
+                    handleInventorySlotDrop(targetSlotIndex);
+                } else {
+                    // Dropped outside any inventory slot (e.g., onto game canvas or body)
+                    // If dropped outside inventory, drop the item at player's location
+                    const playerTileX = Math.round(player.x);
+                    const playerTileY = Math.round(player.y);
+
+                    // Add item to world materials
+                    currentMaterials.push({
+                        type: draggingItem.item.type,
+                        x: playerTileX,
+                        y: playerTileY,
+                        collected: false,
+                        questionIndex: 0,
+                        spawnTime: performance.now()
+                    });
+                    showMessage(`¡Soltaste ${materials[draggingItem.item.type].displayName}!`, 1500);
+                }
+                // Always clear drag state after mouseup
+                draggingItem = null;
+                draggedItemVisual.style.display = 'none';
+                updateInventoryUI(inventoryOpen); // Ensure HTML inventory updates after any drop
+            }
+        });
+
+
+        // Touch controls
+        document.getElementById('up-button').addEventListener('click', () => { movePlayer(0, -1); });
+        document.getElementById('down-button').addEventListener('click', () => { movePlayer(0, 1); });
+        document.getElementById('left-button').addEventListener('click', () => { movePlayer(-1, 0); });
+        document.getElementById('right-button').addEventListener('click', () => { movePlayer(1, 0); });
+        document.getElementById('action-button').addEventListener('click', () => handleAction(false)); // Button action is not a mouse click
+
+        // Game loop
+        let lastUpdateTime = 0; // Last time game was updated
+        const gameLoop = (currentTime) => {
+            const deltaTime = currentTime - lastUpdateTime; // Time elapsed since last update
+            lastUpdateTime = currentTime; // Update last update time
+
+            if (!gameRunning) {
+                return; // Stop loop if game is not running
+            }
+
+            update(currentTime, deltaTime); // Update game state
+            draw(); // Draw game
+
+            requestAnimationFrame(gameLoop); // Request next frame
+        };
+
+        // Camera variables
+        let cameraX = 0;
+        let cameraY = 0;
+
+        /**
+         * Draws the details of a specific tile onto the given context.
+         * This function is used for pre-rendering and for drawing dynamic elements that share a tile appearance.
+         * @param {CanvasRenderingContext2D} context - The canvas context to draw on.
+         * @param {number} tileType - The type of tile to draw.
+         * @param {number} drawX - The X position on the canvas to draw at.
+         * @param {number} drawY - The Y position on the canvas to draw at.
+         * @param {number} x - The X coordinate of the tile on the map (for flowers).
+         * @param {number} y - The Y coordinate of the tile on the map (for flowers).
+         */
+        const drawTileDetails = (context, tileType, drawX, drawY, x, y) => {
+            if (tileType === 1) { // Wall
+                context.fillStyle = '#5A2B15'; // Dark brown
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#6D351A'; // Lighter brown detail
+                context.fillRect(drawX + 1, drawY + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            } else if (tileType === 3) { // Furniture
+                context.fillStyle = '#3e2723'; // Dark wood
+                context.fillRect(drawX, drawY + TILE_SIZE * 0.4, TILE_SIZE, TILE_SIZE * 0.6); // Base
+                context.fillRect(drawX + TILE_SIZE * 0.1, drawY + TILE_SIZE * 0.2, TILE_SIZE * 0.8, TILE_SIZE * 0.2); // Tabletop
+            } else if (tileType === 4) { // Water Source
+                context.fillStyle = '#ADD8E6'; // Light blue water
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#778899'; // Stone basin
+                context.fillRect(drawX + TILE_SIZE * 0.1, drawY + TILE_SIZE * 0.1, TILE_SIZE * 0.8, TILE_SIZE * 0.8);
+                context.fillStyle = '#42A5F5'; // Water surface
+                context.fillRect(drawX + TILE_SIZE * 0.2, drawY + TILE_SIZE * 0.2, TILE_SIZE * 0.6, TILE_SIZE * 0.6);
+            } else if (tileType === 5) { // Bulk Soil
+                context.fillStyle = '#8B4513'; // Brown soil
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                if (imageLoadedSuccessfully.tierra && loadedImages.tierra) { 
+                    context.drawImage(loadedImages.tierra, drawX, drawY, TILE_SIZE, TILE_SIZE); // Use context here instead of ctx
+                } else {
+                    context.font = `${TILE_SIZE * 0.8}px sans-serif`;
+                    context.textAlign = 'center';
+                    context.textBaseline = 'middle';
+                    context.fillText('🪨', drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+                }
+            } else if (tileType === 6) { // Patio Floor
+                context.fillStyle = '#689f38'; // Greenish-brown
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = 'rgba(0,0,0,0.1)'; // Simple texture
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+            } else if (tileType === 7) { // Door
+                context.fillStyle = '#8B4513'; // Brown door
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#5C2D16'; // Darker frame
+                context.fillRect(drawX, drawY, TILE_SIZE, 2);
+                context.fillRect(drawX, drawY + TILE_SIZE - 2, TILE_SIZE, 2);
+                context.fillRect(drawX, drawY, 2, TILE_SIZE);
+                context.fillRect(drawX + TILE_SIZE - 2, drawY, 2, TILE_SIZE);
+                context.fillStyle = '#333'; // Doorknob
+                context.fillRect(drawX + TILE_SIZE * 0.75, drawY + TILE_SIZE * 0.45, TILE_SIZE * 0.1, TILE_SIZE * 0.1);
+            } else if (tileType === 8) { // Grass
+                context.fillStyle = '#4CAF50'; // Green
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#66BB6A'; // Lighter grass patches
+                context.fillRect(drawX + 2, drawY + 2, TILE_SIZE / 4, TILE_SIZE / 4);
+                context.fillRect(drawX + TILE_SIZE - (TILE_SIZE / 4) - 2, drawY + TILE_SIZE - (TILE_SIZE / 4) - 2, TILE_SIZE / 4, TILE_SIZE / 4);
+            } else if (tileType === 9) { // Tree - Only trunk, leaves drawn dynamically
+                context.fillStyle = '#4CAF50'; // Green background for leaves (part of trunk seen through)
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#8B4513'; // Brown trunk
+                context.fillRect(drawX + TILE_SIZE * 0.3, drawY + TILE_SIZE * 0.6, TILE_SIZE * 0.4, TILE_SIZE * 0.4);
+            } else if (tileType === 10) { // River/Water
+                context.fillStyle = '#2196F3'; // Blue water
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = 'rgba(255,255,255,0.2)'; // Simple wave effect
+                context.fillRect(drawX, drawY + TILE_SIZE / 3, TILE_SIZE, 1);
+                context.fillRect(drawX, drawY + TILE_SIZE * 2 / 3, TILE_SIZE, 1);
+            } else if (tileType === 11) { // Path
+                context.fillStyle = '#A1887F'; // Light brown
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = 'rgba(0,0,0,0.1)'; // Simple dirt texture
+                context.fillRect(drawX + 1, drawY + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            } else if (tileType === 12 || tileType === 13) { // Lakes
+                context.fillStyle = '#1E88E5'; // Darker blue for lake
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = 'rgba(255,255,255,0.3)'; // Glare
+                context.beginPath();
+                context.ellipse(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2, TILE_SIZE / 2.5, TILE_SIZE / 4, Math.PI / 4, 0, Math.PI * 2);
+                context.fill();
+            } else if (tileType === 14) { // Bush
+                context.fillStyle = '#388E3C'; // Dark green bush
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#4CAF50'; // Lighter green top
+                context.beginPath();
+                context.ellipse(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2, TILE_SIZE / 2, TILE_SIZE / 2.5, 0, 0, Math.PI * 2);
+                context.fill();
+            } else if (tileType === 15) { // Flower
+                context.fillStyle = '#4CAF50'; // Green for stem/background
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#388E3C'; // Stem
+                context.fillRect(drawX + TILE_SIZE * 0.48, drawY + TILE_SIZE * 0.6, 1, TILE_SIZE * 0.3);
+                const flowerColorIndex = (x + y) % flowerColors.length; // Use x, y for color variety
+                context.fillStyle = flowerColors[flowerColorIndex]; // Pétalos
+                context.beginPath();
+                context.arc(drawX + TILE_SIZE / 2, drawY + TILE_SIZE * 0.4, TILE_SIZE * 0.2, 0, Math.PI * 2); 
+                context.fill();
+                context.fillStyle = '#FFEB3B'; // Centro
+                context.beginPath();
+                context.arc(drawX + TILE_SIZE / 2, drawY + TILE_SIZE * 0.4, TILE_SIZE * 0.08, 0, Math.PI * 2); 
+                context.fill();
+            } else if (tileType === 16) { // Bed
+                context.fillStyle = '#A0522D'; // Brown bed frame
+                context.fillRect(drawX, drawY + TILE_SIZE * 0.6, TILE_SIZE, TILE_SIZE * 0.4);
+                context.fillStyle = '#D3D3D3'; // Gray mattress
+                context.fillRect(drawX + TILE_SIZE * 0.1, drawY + TILE_SIZE * 0.6, TILE_SIZE * 0.8, TILE_SIZE * 0.2);
+                context.fillStyle = '#87CEEB'; // Blue pillow
+                context.fillRect(drawX + TILE_SIZE * 0.15, drawY + TILE_SIZE * 0.5, TILE_SIZE * 0.2, TILE_SIZE * 0.1);
+                context.fillRect(drawX + TILE_SIZE * 0.65, drawY + TILE_SIZE * 0.5, TILE_SIZE * 0.2, TILE_SIZE * 0.1);
+            } else if (tileType === 17) { // Garden Soil
+                context.fillStyle = '#964B00'; // Dark brown garden soil
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                context.fillStyle = '#7A3F1A'; // Dirt lines
+                context.fillRect(drawX, drawY + TILE_SIZE * 0.2, TILE_SIZE, 1);
+                context.fillRect(drawX, drawY + TILE_SIZE * 0.7, TILE_SIZE, 1);
+            } else if (tileType === 2) { // Compost Bin (drawn dynamically)
+                // Drawn later as a dynamic element
+            } else {
+                context.fillStyle = '#f5f5dc'; // Default floor color
+                context.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+            }
+        };
+
+        /**
+         * Draws the full static map onto the offscreenCanvas once.
+         * Only draws static elements and tree trunks.
+         */
+        const drawStaticMap = () => {
+            offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const tileType = gameMap[y][x];
+                    // DO NOT draw tiles that are dynamic or need to be drawn on top of others
+                    // Tiles 2 (compost bin), 18 (planted seed) and 19 (ripe fruit) will be drawn dynamically.
+                    // Tree leaves (visual part of tile 9) are drawn separately.
+                    // Garden soil (17) is static base, plants are drawn on top.
+                    if (tileType !== 2) { // Compost bin is the only static tile that needs special dynamic drawing
+                        drawTileDetails(offscreenCtx, tileType, x * TILE_SIZE, y * TILE_SIZE, x, y);
+                    }
+                }
+            }
+        };
+
+
+        // Update game state
+        const update = (currentTime, deltaTime) => {
+            // Player movement logic based on pressed keys
+            if (!questionActive && !dialogueActive && !inventoryOpen) {
+                if (keys['arrowup'] || keys['w']) {
+                    movePlayer(0, -1);
+                } else if (keys['arrowdown'] || keys['s']) {
+                    movePlayer(0, 1);
+                } else if (keys['arrowleft'] || keys['a']) {
+                    movePlayer(-1, 0);
+                } else if (keys['arrowright'] || keys['d']) {
+                    movePlayer(1, 0);
+                }
+            }
+
+            // Day/Night system update
+            const totalGameTimeElapsed = (currentTime - gameStartTime) / 1000; // Total game time elapsed in seconds
+            const timeIntoCycle = totalGameTimeElapsed % totalCycleDurationSeconds; // Time elapsed in current cycle
+            const previousIsNight = isNight; // Save previous night state
+            let remainingTimeInPhase; // Time remaining in current phase
+
+            if (timeIntoCycle < dayDurationSeconds) {
+                isNight = false; // It's daytime
+                remainingTimeInPhase = dayDurationSeconds - timeIntoCycle; // Time remaining in day
+            } else {
+                isNight = true; // It's nighttime
+                remainingTimeInPhase = totalCycleDurationSeconds - timeIntoCycle; // Time remaining in night
+            }
+
+            // Check for phase transition (Day -> Night)
+            if (isNight && !previousIsNight) {
+                showMessage('¡Ha caído la noche! ¡Cuidado con los monstruos!', 2000);
+                // Ensure player has a sword at night, add it if not
+                const hasSword = player.inventory.some(item => item && materials[item.type].type === 'weapon');
+                if (!hasSword) {
+                    addItemToInventory('sword', 1);
+                }
+            }
+            // Check for phase transition (Night -> Day) - Automatic day progression
+            else if (!isNight && previousIsNight) {
+                gameDay++; // Increment game day
+                dayCounterSpan.textContent = `${gameDay}`; // Update day counter
+                monsters = []; // Limpiar monstruos al amanecer
+                respawnMaterials(); // Regenerar materiales
+                updateFarmPlotGrowth(); // Actualizar el crecimiento de las plantas al inicio del día
+                if (gameDay > TOTAL_GAME_DAYS) { // Check for game end after TOTAL_GAME_DAYS
+                    gameRunning = false;
+                    if (compostPile.count === compostPile.maxCount) {
+                        showMessage(`¡Juego Terminado! ¡Creaste compost perfecto en ${TOTAL_GAME_DAYS} días!`, 5000);
+                        if (elara.missionAccepted) {
+                            showMessage("Elara: '¡Lo lograste! La tierra vuelve a la vida. ¡Gracias, campeón!'", 5000);
+                        }
+                    } else {
+                        showMessage(`¡Juego Terminado! No lograste completar el compost. Compost: ${compostPile.count}/${compostPile.maxCount}`, 5000);
+                            if (elara.missionAccepted && compostPile.count < compostPile.maxCount) {
+                                showMessage("Elara: 'No logramos restaurar la tierra a tiempo. Pero la esperanza perdura. Quizás otro día...'", 5000);
+                            }
+                        }
+                } else {
+                    showMessage(`¡El día ${gameDay} ha comenzado!`, 2000);
+                }
+            }
+
+            // Update UI for time and phase
+            dayTimerSpan.textContent = `${Math.floor(remainingTimeInPhase / 60).toString().padStart(2, '0')}:${Math.floor(remainingTimeInPhase % 60).toString().padStart(2, '0')}`;
+            phaseIndicatorSpan.textContent = isNight ? 'Noche' : 'Día';
+
+            // Handle player movement interpolation
+            handlePlayerMovement(deltaTime);
+
+            // Health regeneration
+            if (player.health < player.maxHealth) {
+                const timePassedSinceLastRegen = currentTime - player.lastHealthRegenTime;
+                if (timePassedSinceLastRegen >= 1000) { // Regenerate every second
+                    const regenAmount = player.healthRegenRate * (timePassedSinceLastRegen / 1000);
+                    player.health = Math.min(player.maxHealth, player.health + regenAmount);
+                    player.lastHealthRegenTime = currentTime;
+                }
+            }
+
+            // Player health check and respawn
+            if (player.health <= 0) {
+                player.health = player.maxHealth; // Reset health
+                player.x = respawnPoint.x; // Respawn at respawn point
+                player.y = respawnPoint.y;
+                player.targetX = respawnPoint.x;
+                player.targetY = respawnPoint.y;
+                monsters = []; // Clear monsters when player dies
+                showMessage('¡Fuiste derrotado! Reapareciste en casa.', 3000);
+            }
+
+            // Monster spawn logic (only at night)
+            if (isNight && currentTime - lastMonsterSpawnTime >= MONSTER_SPAWN_INTERVAL_MS && monsters.length < MAX_ACTIVE_MONSTERS) {
+                spawnRandomMonster(); // Generate a new monster
+                lastMonsterSpawnTime = currentTime; // Update last spawn time
+            }
+
+            // Monster movement and attack logic
+            monsters = monsters.filter(monster => {
+                if (monster.health <= 0) {
+                    // If monster dies, drop an item if it has a defined drop
+                    dropRandomSeed(monster); // Call seed drop function
+                    return false; // Remove dead monsters
+                }
+
+                // Move monster towards player
+                const dx = player.x - monster.x;
+                const dy = player.y - monster.y;
+                const distance = getDistance(monster.x, monster.y, player.x, player.y);
+
+                if (distance > TILE_SIZE / 2) { // Only move if not adjacent
+                    const moveDistance = monster.speed * deltaTime;
+                    monster.x += (dx / distance) * moveDistance;
+                    monster.y += (dy / distance) * moveDistance;
+                }
+
+                // Attack player if close enough and cooldown is ready
+                if (distance < TILE_SIZE && (currentTime - monster.lastAttackTime) > monster.attackCooldown) {
+                    player.health -= monster.damage; // Reduce player health
+                    monster.lastAttackTime = currentTime; // Update monster's last attack time
+                    showMessage(`¡El ${monster.type} te atacó! Salud: ${player.health}`, 1000);
+                }
+                return true; // Keep monster alive
+            });
+
+            // Update damage popups
+            for (let i = damagePopups.length - 1; i >= 0; i--) {
+                const popup = damagePopups[i];
+                const age = currentTime - popup.startTime;
+                if (age > 1000) { // Remove after 1 second
+                    popup.element.remove();
+                    damagePopups.splice(i, 1);
+                } else {
+                    // Update position and opacity (CSS animation handles this, just ensure position is updated)
+                    // The CSS animation handles the floatUpFadeOut effect.
+                    // We just need to make sure the element is positioned correctly initially.
+                }
+            }
+
+
+            // Material spawn logic
+            if (currentTime - lastMaterialSpawnTime >= MATERIAL_SPAWN_INTERVAL_MS && currentMaterials.filter(m => !m.collected && materialPool.includes(m.type)).length < MAX_ACTIVE_MATERIALS) {
+                spawnRandomMaterial(); // Generate a new material
+                lastMaterialSpawnTime = currentTime; // Update last spawn time
+            }
+
+            // Material despawn logic
+            currentMaterials = currentMaterials.filter(mat => {
+                if (mat.collected) return true; // Keep collected materials
+                if (materialPool.includes(mat.type) && currentTime - mat.spawnTime > MATERIAL_DESPAWN_TIME_MS) {
+                    showMessage(`${materials[mat.type].displayName} desapareció! No lo recogiste a tiempo.`, 1500);
+                    return false; // Remove material if expired
+                }
+                return true; // Keep material active
+            });
+
+
+            // Question resolution logic
+            if (questionActive) {
+                const timeRemaining = Math.max(0, QUESTION_DURATION_MS - (currentTime - questionStartTime)); // Time remaining for question
+                questionTimerElement.textContent = `Tiempo: ${Math.ceil(timeRemaining / 1000)}s`; // Update timer
+
+                if (timeRemaining <= 0) {
+                    resolveQuestion(); // Resolve question if time runs out
+                }
+            }
+        };
+
+        // NEW: Function to drop a random seed from a monster
+        function dropRandomSeed(monster) {
+            let randomValue = Math.random();
+            let cumulativeProbability = 0;
+            let droppedSeedType = null;
+
+            for (const seedType of herbSeedTypes) {
+                cumulativeProbability += herbSeedProbabilities[seedType];
+                if (randomValue < cumulativeProbability) {
+                    droppedSeedType = seedType;
+                    break;
+                }
+            }
+
+            if (droppedSeedType) {
+                addItemToInventory(droppedSeedType, 1);
+                showMessage(`¡El ${monster.type} soltó una ${materials[droppedSeedType].displayName}!`, 1500);
+            } else {
+                showMessage(`¡El ${monster.type} no soltó nada esta vez!`, 1500);
+            }
+        }
+
+
+        // Draw everything on the canvas
+        const draw = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            // Calculate camera position to center it on the player
+            cameraX = Math.max(0, Math.min(player.x * TILE_SIZE - ACTUAL_CANVAS_WIDTH / 2, MAP_WIDTH * TILE_SIZE - ACTUAL_CANVAS_WIDTH));
+            cameraY = Math.max(0, Math.min(player.y * TILE_SIZE - ACTUAL_CANVAS_HEIGHT / 2, MAP_HEIGHT * TILE_SIZE - ACTUAL_CANVAS_HEIGHT));
+
+            // Draw pre-rendered static map (includes tree trunks)
+            ctx.drawImage(offscreenCanvas, cameraX, cameraY, ACTUAL_CANVAS_WIDTH, ACTUAL_CANVAS_HEIGHT, 0, 0, ACTUAL_CANVAS_WIDTH, ACTUAL_CANVAS_HEIGHT);
+
+            // Draw dynamic elements that change and need to be drawn on top of the static map
+            // Compost bin (tile 2)
+            const compostDrawX = compostPile.x * TILE_SIZE - cameraX;
+            const compostDrawY = compostPile.y * TILE_SIZE - cameraY;
+            if (compostDrawX + TILE_SIZE > 0 && compostDrawX < ACTUAL_CANVAS_WIDTH &&
+                compostDrawY + TILE_SIZE > 0 && compostDrawY < ACTUAL_CANVAS_HEIGHT) { // Only draw if visible
+                if (imageLoadedSuccessfully.compost_bin && loadedImages.compost_bin) {
+                    ctx.drawImage(loadedImages.compost_bin, compostDrawX, compostDrawY, TILE_SIZE, TILE_SIZE);
+                } else {
+                    ctx.fillStyle = '#455A64'; // Dark gray bin
+                    ctx.fillRect(compostDrawX, compostDrawY, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = '#607D8B'; // Lighter top edge
+                    ctx.fillRect(compostDrawX, compostDrawY, TILE_SIZE, TILE_SIZE * 0.1);
+                }
+
+                // Compost fill
+                const compostFillHeight = (compostPile.count / compostPile.maxCount) * TILE_SIZE * 0.8;
+                ctx.fillStyle = '#3E2723'; // Compost brown
+                ctx.fillRect(compostDrawX + TILE_SIZE * 0.1, compostDrawY + TILE_SIZE - compostFillHeight, TILE_SIZE * 0.8, compostFillHeight);
+
+                ctx.font = `${TILE_SIZE * 0.6}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'white';
+                let stateEmoji = '';
+                switch (compostState) {
+                    case COMPOST_STATES.NEEDS_SOIL: stateEmoji = '🪨'; break;
+                    case COMPOST_STATES.NEEDS_MATERIAL: stateEmoji = '🍎'; break;
+                    case COMPOST_STATES.NEEDS_WATER: stateEmoji = '💧'; break;
+                    case COMPOST_STATES.NEEDS_STIR: stateEmoji = '🔄'; break;
+                    case COMPOST_STATES.FULL: stateEmoji = '✅'; break;
+                }
+                ctx.fillText(stateEmoji, compostDrawX + TILE_SIZE / 2, compostDrawY + TILE_SIZE / 2);
+            }
+
+            // Draw materials (adjusted for camera offset)
+            currentMaterials.forEach(mat => {
+                if (!mat.collected) {
+                    const materialDef = materials[mat.type];
+                    const drawX = mat.x * TILE_SIZE - cameraX;
+                    const drawY = mat.y * TILE_SIZE - cameraY;
+                    if (drawX + TILE_SIZE > 0 && drawX < ACTUAL_CANVAS_WIDTH &&
+                        drawY + TILE_SIZE > 0 && drawY < ACTUAL_CANVAS_HEIGHT) { // Only draw if visible
+                        if (imageLoadedSuccessfully[mat.type] && loadedImages[mat.type]) {
+                            ctx.drawImage(loadedImages[mat.type], drawX, drawY, TILE_SIZE, TILE_SIZE);
+                        } else {
+                            ctx.font = `${TILE_SIZE * 0.9}px sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#f5f5dc'; // Fallback background
+                            ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                            ctx.fillStyle = 'black';
+                            ctx.fillText(materialDef.emoji, drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+                        }
+                    }
+                }
+            });
+
+            // Draw NPCs (adjusted for camera offset)
+            [elara, silasVane, compostGuru].forEach(npc => { // Added compostGuru to NPC list
+                const npcDrawX = npc.x * TILE_SIZE - cameraX;
+                const npcDrawY = npc.y * TILE_SIZE - cameraY;
+                if (npcDrawX + TILE_SIZE > 0 && npcDrawX < ACTUAL_CANVAS_WIDTH &&
+                    npcDrawY + TILE_SIZE > 0 && npcDrawY < ACTUAL_CANVAS_HEIGHT) { // Only draw if visible
+                    ctx.fillStyle = npc.color;
+                    ctx.fillRect(npcDrawX, npcDrawY, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(npcDrawX, npcDrawY, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.fillRect(npcDrawX + 2, npcDrawY + 2, TILE_SIZE - 4, TILE_SIZE - 4); // For depth effect
+
+                    ctx.font = `${TILE_SIZE * 0.9}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(npc.emoji, npcDrawX + TILE_SIZE / 2, npcDrawY + TILE_SIZE / 2);
+                }
+            });
+
+            // Draw monsters
+            monsters.forEach(monster => {
+                const monsterDrawX = monster.x * TILE_SIZE - cameraX;
+                const monsterDrawY = monster.y * TILE_SIZE - cameraY;
+                if (monsterDrawX + TILE_SIZE > 0 && monsterDrawX < ACTUAL_CANVAS_WIDTH &&
+                    monsterDrawY + TILE_SIZE > 0 && monsterDrawY < ACTUAL_CANVAS_HEIGHT) { // Only draw if visible
+                    
+                    // Apply hit flash effect if recently hit
+                    if (performance.now() - monster.lastHitTime < monster.hitFlashTime) {
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Red tint
+                        ctx.fillRect(monsterDrawX, monsterDrawY, TILE_SIZE, TILE_SIZE);
+                    }
+
+                    ctx.fillStyle = monster.color;
+                    ctx.fillRect(monsterDrawX, monsterDrawY, TILE_SIZE, TILE_SIZE);
+                    ctx.font = `${TILE_SIZE * 0.8}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(monster.emoji, monsterDrawX + TILE_SIZE / 2, monsterDrawY + TILE_SIZE / 2);
+                }
+            });
+
+            // Draw planted farm plots
+            plantedFarmPlots.forEach(plot => {
+                const plotDrawX = plot.x * TILE_SIZE - cameraX;
+                const plotDrawY = plot.y * TILE_SIZE - cameraY;
+
+                if (plotDrawX + TILE_SIZE > 0 && plotDrawX < ACTUAL_CANVAS_WIDTH &&
+                    plotDrawY + TILE_SIZE > 0 && plotDrawY < ACTUAL_CANVAS_HEIGHT) {
+
+                    const seedDef = materials[plot.plantedSeed];
+                    let plantItemName = seedDef.growsTo; // The name of the item it grows into
+
+                    // Determine plant image/emoji based on growth stage
+                    let imageToDraw = null;
+                    let emojiToDraw = seedDef.emoji; // Default to seed emoji
+
+                    if (plot.growthStage >= seedDef.growthTime) {
+                        // Ripe plant, use the image of the harvested item
+                        imageToDraw = loadedImages[plantItemName];
+                        emojiToDraw = materials[plantItemName].emoji;
+                    } else if (plot.growthStage > 0) {
+                        // Intermediate growth stage, use a generic plant seedling or small version
+                        emojiToDraw = '🌱'; // Generic small plant
+                    } else {
+                        // Just planted, show the seed itself
+                        imageToDraw = loadedImages[plot.plantedSeed];
+                        emojiToDraw = seedDef.emoji;
+                    }
+
+                    // Draw image if available, otherwise draw emoji
+                    if (imageToDraw && imageLoadedSuccessfully[imageToDraw.src.substring(imageToDraw.src.lastIndexOf('/') + 1, imageToDraw.src.lastIndexOf('.'))]) {
+                        ctx.drawImage(imageToDraw, plotDrawX, plotDrawY, TILE_SIZE, TILE_SIZE);
+                    } else if (emojiToDraw) { 
+                        // Fallback to emoji for plants
+                        ctx.font = `${TILE_SIZE * 0.9}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = 'black'; // Or plant-specific color
+                        ctx.fillText(emojiToDraw, plotDrawX + TILE_SIZE / 2, plotDrawY + TILE_SIZE / 2);
+                    }
+
+                    // Draw growth progress text
+                    if (plot.growthStage < seedDef.growthTime) {
+                         ctx.font = 'bold 8px Inter, sans-serif';
+                         ctx.textAlign = 'left';
+                         ctx.textBaseline = 'top';
+                         ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                         ctx.fillText(`${plot.growthStage}/${seedDef.growthTime}`, plotDrawX + 2, plotDrawY + 2);
+                    } else {
+                         ctx.font = 'bold 10px Inter, sans-serif';
+                         ctx.textAlign = 'left';
+                         ctx.textBaseline = 'top';
+                         ctx.fillStyle = 'rgba(0,100,0,0.9)';
+                         ctx.fillText('Listo', plotDrawX + 2, plotDrawY + 2);
+                    }
+
+                    // Draw watered status overlay
+                    if (!plot.watered && plot.lastWateredDay < gameDay) {
+                        ctx.fillStyle = 'rgba(255,165,0,0.3)'; // Orange transparent overlay for needs water
+                        ctx.fillRect(plotDrawX, plotDrawY, TILE_SIZE, TILE_SIZE);
+                    } else if (plot.watered && plot.lastWateredDay === gameDay) {
+                        ctx.fillStyle = 'rgba(0,200,0,0.1)'; // Light green transparent overlay for watered today
+                        ctx.fillRect(plotDrawX, plotDrawY, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            });
+
+
+            // Draw player (adjusted for camera offset)
+            const playerDrawX = player.x * TILE_SIZE - cameraX;
+            const playerDrawY = player.y * TILE_SIZE - cameraY;
+
+            ctx.save(); // Save current context state
+
+            ctx.translate(playerDrawX + TILE_SIZE / 2, playerDrawY + TILE_SIZE / 2); // Move origin to player's center
+
+            // Flip player sprite based on direction: If player.direction is 'left', flip horizontally.
+            if (player.direction === 'left') { 
+                ctx.scale(-1, 1); // Flip horizontally
+            }
+
+            const drawOriginX = -TILE_SIZE / 2; // Drawing origin X relative to player's center
+            const drawOriginY = -TILE_SIZE / 2; // Drawing origin Y relative to player's center
+
+            if (imageLoadedSuccessfully.player && loadedImages.player) {
+                ctx.drawImage(loadedImages.player, drawOriginX, drawOriginY, TILE_SIZE, TILE_SIZE);
+            } else {
+                // Fallback drawing for player
+                ctx.fillStyle = '#f5f5dc'; // Ground color
+                ctx.fillRect(drawOriginX, drawOriginY, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = '#4CAF50'; // Green for body
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.25, drawOriginY + TILE_SIZE * 0.4, TILE_SIZE * 0.5, TILE_SIZE * 0.4);
+                ctx.fillStyle = '#E65100'; // Orange for head
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.3, drawOriginY + TILE_SIZE * 0.1, TILE_SIZE * 0.4, TILE_SIZE * 0.3);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.35, drawOriginY + TILE_SIZE * 0.2, 2, 2); // Left eye
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.6 - 1, drawOriginY + TILE_SIZE * 0.2, 2, 2); // Right eye
+                ctx.fillStyle = '#795548'; // Brown for legs
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.25, drawOriginY + TILE_SIZE * 0.8, TILE_SIZE * 0.2, TILE_SIZE * 0.2);
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.55, drawOriginY + TILE_SIZE * 0.8, TILE_SIZE * 0.2, TILE_SIZE * 0.2);
+                ctx.fillStyle = '#4CAF50'; // Arms
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.15, drawOriginY + TILE_SIZE * 0.45, TILE_SIZE * 0.1, TILE_SIZE * 0.3);
+                ctx.fillRect(drawOriginX + TILE_SIZE * 0.75, drawOriginY + TILE_SIZE * 0.45, TILE_SIZE * 0.1, TILE_SIZE * 0.3);
+            }
+
+            // Draw active item held by player in hand
+            const activeItem = player.inventory[player.activeSlotIndex];
+            if (activeItem) {
+                const heldItemDef = materials[activeItem.type];
+                const itemSize = TILE_SIZE * 0.5; // Item occupies 50% of tile size (smaller)
+
+                // Position of item relative to player's center (0,0 in this transformed context)
+                // Adjusted so item appears in the "correct" hand
+                let itemPositionX = TILE_SIZE * 0.2; // Offset from player's center towards their right hand
+                let itemPositionY = TILE_SIZE * 0.15; // Vertical offset from player's center
+
+                // If player is facing left, item should appear in left hand
+                if (player.direction === 'left') {
+                    itemPositionX = -TILE_SIZE * 0.2; // Offset to the left
+                }
+
+                if (heldItemDef && imageLoadedSuccessfully[activeItem.type] && loadedImages[activeItem.type]) {
+                    ctx.drawImage(loadedImages[activeItem.type], itemPositionX - itemSize / 2, itemPositionY - itemSize / 2, itemSize, itemSize);
+                } else if (heldItemDef) {
+                    ctx.font = `${itemSize * 0.9}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = 'black';
+                    // Adjustment so emoji draws within the flip transform
+                    ctx.fillText(heldItemDef.emoji, itemPositionX / (player.direction === 'left' ? -1 : 1), itemPositionY + itemSize / 2);
+                }
+            }
+            ctx.restore(); // Restore context state (undoes translation and flip)
+
+            // Draw tree leaves AFTER player to cover them
+            treeLocations.forEach(tree => {
+                const leavesWidth = TILE_SIZE * 2.5;
+                const leavesHeight = TILE_SIZE * 2.0; // Adjusted to cover more vertically
+                const leavesDrawX = tree.x * TILE_SIZE - cameraX + (TILE_SIZE - leavesWidth) / 2;
+                const leavesDrawY = tree.y * TILE_SIZE - cameraY - TILE_SIZE; // Adjusted to lower leaves
+
+                // Only draw leaves if tree base is within visible range
+                if (tree.x * TILE_SIZE - cameraX + TILE_SIZE > 0 && tree.x * TILE_SIZE - cameraX < ACTUAL_CANVAS_WIDTH &&
+                    tree.y * TILE_SIZE - cameraY + TILE_SIZE > 0 && tree.y * TILE_SIZE - cameraY < ACTUAL_CANVAS_HEIGHT) {
+                    
+                    ctx.fillStyle = '#388E3C'; // Dark green for leaves
+                    ctx.beginPath();
+                    ctx.ellipse(leavesDrawX + leavesWidth / 2, leavesDrawY + leavesHeight / 2, leavesWidth / 2, leavesHeight / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#4CAF50'; // Lighter green on top
+                    ctx.beginPath();
+                    ctx.ellipse(leavesDrawX + leavesWidth / 2, leavesDrawY + leavesHeight * 0.4, leavesWidth / 2.2, leavesHeight / 2.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+
+            // Draw mouse crosshair if visible
+            if (crosshair.visible) {
+                const crosshairDrawX = crosshair.x * TILE_SIZE - cameraX;
+                const crosshairDrawY = crosshair.y * TILE_SIZE - cameraY;
+
+                ctx.strokeStyle = '#FFFF00'; // Yellow color
+                ctx.lineWidth = 2;
+
+                // Horizontal line
+                ctx.beginPath();
+                ctx.moveTo(crosshairDrawX + TILE_SIZE * 0.1, crosshairDrawY + TILE_SIZE / 2);
+                ctx.lineTo(crosshairDrawX + TILE_SIZE * 0.9, crosshairDrawY + TILE_SIZE / 2);
+                ctx.stroke();
+
+                // Vertical line
+                ctx.beginPath();
+                ctx.moveTo(crosshairDrawX + TILE_SIZE / 2, crosshairDrawY + TILE_SIZE * 0.1);
+                ctx.lineTo(crosshairDrawX + TILE_SIZE / 2, crosshairDrawY + TILE_SIZE * 0.9);
+                ctx.stroke();
+            }
+
+            // Apply night overlay
+            if (isNight) {
+                ctx.fillStyle = 'rgba(0, 0, 50, 0.5)'; // Dark blue transparent overlay
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Update UI elements
+            compostCountSpan.textContent = compostPile.count;
+            compostMaxSpan.textContent = compostPile.maxCount;
+            let stateText = '';
+            switch (compostState) {
+                case COMPOST_STATES.NEEDS_SOIL: stateText = 'Esperando tierra'; break;
+                case COMPOST_STATES.NEEDS_MATERIAL: stateText = 'Esperando material orgánico'; break;
+                case COMPOST_STATES.NEEDS_WATER: stateText = 'Necesita agua'; break;
+                case COMPOST_STATES.NEEDS_STIR: stateText = 'Necesita ser revuelto'; break;
+                case COMPOST_STATES.FULL: stateText = '¡Compost listo!'; break;
+            }
+            compostStateSpan.textContent = stateText;
+
+            // Update player health UI
+            healthValueSpan.textContent = Math.round(player.health); // Round for display
+            healthBar.style.width = `${(player.health / player.maxHealth) * 100}%`;
+
+            // Draw hotbar on Canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Dark transparent background
+            ctx.roundRect(HOTBAR_START_X, HOTBAR_START_Y, HOTBAR_WIDTH, HOTBAR_HEIGHT, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#8B4513'; // Brown border
+            ctx.lineWidth = 2;
+            ctx.roundRect(HOTBAR_START_X, HOTBAR_START_Y, HOTBAR_WIDTH, HOTBAR_HEIGHT, 10);
+            ctx.stroke();
+
+            // Draw active item name above hotbar
+            const activeItemInHotbar = player.inventory[player.activeSlotIndex]; // Get active item to display its name
+            const activeItemName = activeItemInHotbar ? materials[activeItemInHotbar.type].displayName : 'Ninguno';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+            ctx.fillText(activeItemName, ACTUAL_CANVAS_WIDTH / 2, HOTBAR_START_Y - 10); // Position above hotbar
+
+            // Draw individual hotbar slots
+            for (let i = 0; i < 4; i++) {
+                const slotX = HOTBAR_START_X + HOTBAR_PADDING + (i * (HOTBAR_SLOT_SIZE + HOTBAR_SLOT_SPACING));
+                const slotY = HOTBAR_START_Y + HOTBAR_PADDING;
+
+                // Draw slot background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; // Lighter transparent background for slots
+                ctx.roundRect(slotX, slotY, HOTBAR_SLOT_SIZE, HOTBAR_SLOT_SIZE, 8);
+                ctx.fill();
+
+                // Draw slot border
+                ctx.strokeStyle = '#66BB6A'; // Green border
+                ctx.lineWidth = 2;
+                ctx.roundRect(slotX, slotY, HOTBAR_SLOT_SIZE, HOTBAR_SLOT_SIZE, 8);
+                ctx.stroke();
+
+                // Draw active slot indicator
+                if (player.activeSlotIndex === i) {
+                    ctx.strokeStyle = '#FFEB3B'; // Yellow for active slot
+                    ctx.lineWidth = 4; // Thicker border for active slot
+                    ctx.roundRect(slotX, slotY, HOTBAR_SLOT_SIZE, HOTBAR_SLOT_SIZE, 8);
+                    ctx.stroke();
+                }
+
+                // Draw item in slot
+                const item = player.inventory[i];
+                if (item) {
+                    const itemDef = materials[item.type];
+                    if (itemDef) {
+                        const itemDrawSize = HOTBAR_SLOT_SIZE * 0.7; // Item takes 70% of slot size
+                        const itemDrawX = slotX + (HOTBAR_SLOT_SIZE - itemDrawSize) / 2;
+                        const itemDrawY = slotY + (HOTBAR_SLOT_SIZE - itemDrawSize) / 2;
+
+                        if (imageLoadedSuccessfully[item.type] && loadedImages[item.type]) {
+                            ctx.drawImage(loadedImages[item.type], itemDrawX, itemDrawY, itemDrawSize, itemDrawSize);
+                        } else {
+                            ctx.font = `${itemDrawSize * 0.9}px sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = 'white';
+                            ctx.fillText(itemDef.emoji, slotX + HOTBAR_SLOT_SIZE / 2, slotY + HOTBAR_SLOT_SIZE / 2);
+                        }
+
+                        // Draw item count
+                        if (item.count > 1) {
+                            ctx.font = 'bold 12px Inter, sans-serif';
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillStyle = 'white';
+                            ctx.fillText(item.count.toString(), slotX + HOTBAR_SLOT_SIZE - 5, slotY + HOTBAR_SLOT_SIZE - 5);
+                        }
+                    }
+                }
+            }
+        };
+
+        // NEW: Farm plot functions (now integrated into game logic and drawing)
+        /**
+         * Updates the growth of plants in the farm plots at the start of a new day.
+         * This function iterates through the plantedFarmPlots array.
+         */
+        const updateFarmPlotGrowth = () => {
+            // Iterate in reverse to safely remove withered plots
+            for (let i = plantedFarmPlots.length - 1; i >= 0; i--) {
+                const plot = plantedFarmPlots[i];
+                if (plot.plantedSeed) {
+                    const plantDef = materials[plot.plantedSeed];
+                    
+                    // Check for growth
+                    // Plant grows if it was watered yesterday (lastWateredDay === gameDay - 1) AND hasn't grown today (lastGrowthDay < gameDay)
+                    if (plot.watered && plot.lastWateredDay === gameDay - 1 && plot.lastGrowthDay < gameDay) {
+                        plot.growthStage++;
+                        plot.lastGrowthDay = gameDay; // Register growth day
+                        showMessage(`¡Tu ${plantDef.displayName} en (${plot.x},${plot.y}) ha crecido al día ${plot.growthStage}!`, 1500);
+                    } 
+                    // Check for wilting (if not watered yesterday or today)
+                    else if (!plot.watered && plot.lastWateredDay < gameDay -1 && plot.growthStage > 0) { 
+                        if (Math.random() < 0.2) { // 20% chance to wither
+                            showMessage(`¡Tu ${plantDef.displayName} en (${plot.x},${plot.y}) se marchitó por falta de agua!`, 2000);
+                            plantedFarmPlots.splice(i, 1); // Remove withered plot
+                            continue; // Skip to next iteration as plot is removed
+                        }
+                    }
+                    plot.watered = false; // Reset watered status for the new day
+                }
+            }
+        };
+
+        // Inicializar juego
+        window.onload = function() {
+            // Añadir un método roundRect a CanvasRenderingContext2D si no existe (para navegadores más antiguos)
+            if (!CanvasRenderingContext2D.prototype.roundRect) {
+                CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                    if (typeof radius === 'undefined') {
+                        radius = 5; // Radio por defecto
+                    }
+                    this.beginPath();
+                    this.moveTo(x + radius, y);
+                    this.lineTo(x + width - radius, y);
+                    this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                    this.lineTo(x + width, y + height - radius);
+                    this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                    this.lineTo(x + radius, y + height);
+                    this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                    this.lineTo(x, y + radius);
+                    this.quadraticCurveTo(x, y, x + radius, y);
+                    this.closePath();
+                };
+            }
+            // La inicialización del juego se maneja dentro de checkAllAssetsLoaded
+            // para asegurar que todos los recursos se hayan intentado cargar.
+            // Esto asegura que la página de carga se muestre hasta que todo esté listo.
+        };
+    </script>
+</body>
+</html>
